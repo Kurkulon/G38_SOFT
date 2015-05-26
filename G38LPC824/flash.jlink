@@ -1,4 +1,4 @@
-speed 8000
+speed 2000
 r
 h
 exec device = LPC824M201

@@ -78,12 +78,13 @@ extern "C" void SystemInit()
 
 	SYSCON->SYSAHBCLKCTRL |= CLK::SWM_M | CLK::IOCON_M | CLK::GPIO_M | HW::CLK::MRT_M | HW::CLK::UART0_M | HW::CLK::CRC_M;
 
-	GPIO->DIRSET0 = (1<<27)|(1<<14)|(1<<23)|(1<<22);
-	GPIO->CLR0 = (1<<27)|(1<<14)|(1<<23)|(1<<22);
+	GPIO->DIRSET0 = (1<<27)|(1<<14)|(1<<17)|(1<<18)|(1<<19)|(1<<20)|(1<<21)|(1<<22);
+	GPIO->CLR0 = (1<<27)|(1<<14)|(1<<20)|(1<<21)|(1<<22);
+	GPIO->SET0 = (1<<17)|(1<<18)|(1<<19);
 
-	IOCON->PIO0_1.B.MODE = 0;// &= ~(0x3 << 3);
+	IOCON->PIO0_1.B.MODE = 0;
 
-	SWM->PINENABLE0.B.CLKIN = 0;// &= ~(0x1 << 7);
+	SWM->PINENABLE0.B.CLKIN = 0;
 
 	for (i = 0; i < 200; i++) __nop();
 
@@ -315,9 +316,9 @@ void InitHardware()
 	InitVectorTable();
 	Init_time();
 	InitADC();
-	InitPWM();
-	InitTaho();
-	StopMotor();
+//	InitPWM();
+//	InitTaho();
+//	StopMotor();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -325,7 +326,7 @@ void InitHardware()
 void UpdateHardware()
 {
 	UpdateADC();
-	UpdateMotor();
+//	UpdateMotor();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
