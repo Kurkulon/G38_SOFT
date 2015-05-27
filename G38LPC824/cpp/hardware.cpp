@@ -2,11 +2,13 @@
 #include "core.h"
 #include "time.h"
 
+#include "hardware.h"
 
 u16 curHV = 0;
 u16 reqHV = 800;
 u16 curADC = 0;
 u32 tachoCount = 0;
+i32 shaftPos = 0;
 
 byte motorState = 0;
 static u32 reqTacho = 0;
@@ -25,6 +27,32 @@ static Dbt stopTacho(160);
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+// HHH 
+// WVU  UV W
+//     00001111 EW
+//     00110011 EV
+//     01010101 EU
+// 000 00000000
+// 001 00+0-000         
+// 010 0-00+000        
+// 011 0+-00000          
+// 100 0+-00000             
+// 101 0-00+000             
+// 110 00+0-000            
+// 111 00000000
+
+
+static i8 tachoEncoder[8][8] = {
+	{0,0,0,0,0,0,0,0},
+	{0,0,1,0,-1,0,0,0},
+	{0,-1,0,0,1,0,0,0},
+	{0,1,-1,0,0,0,0,0},
+	{0,1,-1,0,0,0,0,0},
+	{0,-1,0,0,1,0,0,0},
+	{0,0,1,0,-1,0,0,0},
+	{0,0,0,0,0,0,0,0}
+};
+	
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static __irq void IntDummyHandler()
@@ -106,10 +134,6 @@ extern "C" void SystemInit()
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-inline void SetDutyPWM(u16 v)
-{
-	HW::SCT->MATCHREL_L[0] = v;
-}
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -206,7 +230,7 @@ static void UpdateADC()
 {
 	using namespace HW;
 
-	curADC = ((ADC->DAT0&0xFFF0) * 4800 ) >> 16;
+	curADC = ((ADC->DAT0&0xFFF0) * 1800 ) >> 16;
 	ADC->SEQA_CTRL = 1|(1<<18)|(1UL<<31)|(1<<26);
 }
 
@@ -221,15 +245,17 @@ static void InitPWM()
 	SCT->STATE_L = 0;
 	SCT->REGMODE_L = 0;
 
-	SCT->MATCHREL_L[0] = 1251; 
-	SCT->MATCHREL_L[1] = 1250;
-	SCT->MATCH_L[2] = 0; 
+	SCT->MATCHREL_L[0] = 1240; 
+	SCT->MATCHREL_L[1] = 1200;
+	SCT->MATCHREL_L[2] = 1250; 
 	SCT->MATCH_L[3] = 0; 
 	SCT->MATCH_L[4] = 0;
 
-	SCT->OUT[0].SET = (1<<1);
-	SCT->OUT[0].CLR = (1<<0);
+	SCT->OUT[0].SET = (1<<2);
+	SCT->OUT[0].CLR = (1<<1);
 
+	SCT->OUT[1].SET = (1<<0)|(1<<1);
+	SCT->OUT[1].CLR = (1<<2);
 
 	SCT->EVENT[0].STATE = 1;
 	SCT->EVENT[0].CTRL = (1<<5)|(0<<6)|(1<<12)|0;
@@ -237,8 +263,8 @@ static void InitPWM()
 	SCT->EVENT[1].STATE = 1;
 	SCT->EVENT[1].CTRL = (1<<5)|(0<<6)|(1<<12)|1;
 
-	SCT->EVENT[2].STATE = 0;
-	SCT->EVENT[2].CTRL = 0;
+	SCT->EVENT[2].STATE = 1;
+	SCT->EVENT[2].CTRL = (1<<5)|(0<<6)|(1<<12)|2;
 
 	SCT->EVENT[3].STATE = 0;
 	SCT->EVENT[3].CTRL = 0;
@@ -252,11 +278,12 @@ static void InitPWM()
 	SCT->START_L = 0;
 	SCT->STOP_L = 0;
 	SCT->HALT_L = 0;
-	SCT->LIMIT_L = (1<<1);
+	SCT->LIMIT_L = (1<<2);
 
 	SCT->CONFIG = 0; 
 
-	SWM->CTOUT_0 = 21;
+	//SWM->CTOUT_0 = 20;
+	//SWM->CTOUT_1 = 17;
 
 	SCT->CTRL_L = (1<<3);
 }
@@ -290,7 +317,9 @@ static __irq void TahoHandler()
 {
 	tachoCount++;
 
-	HW::PIN_INT->IST = 1;
+	shaftPos += tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
+
+	HW::PIN_INT->IST = 7;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -299,14 +328,20 @@ static void InitTaho()
 {
 	using namespace HW;
 
-	SYSCON->PINTSEL[0] = 18;
+	SYSCON->PINTSEL[0] = 8;
+	SYSCON->PINTSEL[1] = 9;
+	SYSCON->PINTSEL[2] = 10;
 	PIN_INT->ISEL = 0;
-	PIN_INT->SIENF = 1;
-	PIN_INT->FALL = 1;
-	PIN_INT->IST = 1;
+	PIN_INT->SIENF = 7;
+	PIN_INT->SIENR = 7;
+	PIN_INT->FALL = 7;
+	PIN_INT->RISE = 7;
+	PIN_INT->IST = 7;
 
 	VectorTableExt[PININT0_IRQ] = TahoHandler;
-	CM0::NVIC->ISER[0] = 1<<PININT0_IRQ;
+	VectorTableExt[PININT1_IRQ] = TahoHandler;
+	VectorTableExt[PININT2_IRQ] = TahoHandler;
+	CM0::NVIC->ISER[0] = 7<<PININT0_IRQ;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -316,8 +351,8 @@ void InitHardware()
 	InitVectorTable();
 	Init_time();
 	InitADC();
-//	InitPWM();
-//	InitTaho();
+	InitPWM();
+	InitTaho();
 //	StopMotor();
 }
 

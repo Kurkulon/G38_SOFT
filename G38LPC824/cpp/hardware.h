@@ -13,6 +13,19 @@ extern void UpdateHardware();
 extern u16 GetCRC(const void *data, u32 len);
 extern void StartValve(bool dir, u32 tacho, u32 time, u16 lim);
 
+inline i32 GetShaftPos() { extern i32 shaftPos; return shaftPos; }
+
+inline u32 GetTachoCount() { extern u32 tachoCount; return tachoCount; }
+
+
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline void SetDutyPWM(u16 v)
+{
+	HW::SCT->MATCHREL_L[0] = (v < HW::SCT->MATCH_L[1]) ? v : HW::SCT->MATCH_L[1];
+}
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 inline bool IsMotorIdle()
@@ -23,7 +36,7 @@ inline bool IsMotorIdle()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-u32 GetMotorStopTime()
+inline u32 GetMotorStopTime()
 {
 	extern u32 stopTime;
 	return stopTime;
