@@ -49,7 +49,7 @@ byte LG_pin[16] = { 0xFF, UL, VL, VL, WL, UL, WL, 0XFF, 0xFF, WL, UL, WL, VL, VL
 byte HG_pin[16] = { 0xFF, UH, VH, VH, WH, UH, WH, 0xFF, 0xFF, WH, UH, WH, VH, VH, UH, 0xFF };
 
 
-i32 destShaftPos = 1000;
+i32 destShaftPos = 500;
 
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -63,7 +63,7 @@ static void PID_Update()
 	static float e1 = 0, e2 = 0;
 	static float out = 0;
 
-	const float Kp = 10, Ki = 0.0001, Kd = 0.01;
+	const float Kp = 10, Ki = 0.00014, Kd = 0.01;
 
 	float e;
 
@@ -193,11 +193,13 @@ int main()
 		//		break;
 		//}; // switch (i)
 
-		if (tm.Check(3000))
+		HW::GPIO->NOT0 = 1<<12;
+
+		if (tm.Check(2000))
 		{
 //			com.TransmitByte(sec++);
 
-		//	destShaftPos = -destShaftPos;
+//			destShaftPos = -destShaftPos;
 
 			//dir = !dir;
 		};

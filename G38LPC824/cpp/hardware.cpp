@@ -7,6 +7,9 @@
 u16 curHV = 0;
 u16 reqHV = 800;
 u16 curADC = 0;
+u32 fcurADC = 0;
+u16 vAP = 0;
+u32 fvAP = 0;
 u32 tachoCount = 0;
 i32 shaftPos = 0;
 
@@ -106,7 +109,7 @@ extern "C" void SystemInit()
 
 	SYSCON->SYSAHBCLKCTRL |= CLK::SWM_M | CLK::IOCON_M | CLK::GPIO_M | HW::CLK::MRT_M | HW::CLK::UART0_M | HW::CLK::CRC_M;
 
-	GPIO->DIRSET0 = (1<<27)|(1<<14)|(1<<17)|(1<<18)|(1<<19)|(1<<20)|(1<<21)|(1<<22);
+	GPIO->DIRSET0 = (1<<27)|(1<<14)|(1<<17)|(1<<18)|(1<<19)|(1<<20)|(1<<21)|(1<<22)|(1<<12);
 	GPIO->CLR0 = (1<<27)|(1<<14)|(1<<20)|(1<<21)|(1<<22);
 	GPIO->SET0 = (1<<17)|(1<<18)|(1<<19);
 
@@ -230,8 +233,16 @@ static void UpdateADC()
 {
 	using namespace HW;
 
-	curADC = ((ADC->DAT0&0xFFF0) * 1800 ) >> 16;
-	ADC->SEQA_CTRL = 1|(1<<18)|(1UL<<31)|(1<<26);
+	fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;
+
+	curADC = fcurADC >> 3;
+
+	fvAP += (((ADC->DAT1&0xFFF0) * 3300) >> 16) - vAP;
+
+	vAP = fvAP >> 3;
+
+
+//	ADC->SEQA_CTRL = 1|(1<<18)|(1UL<<31)|(1<<26);
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -298,6 +309,7 @@ static void InitADC()
 	//SWM->PINASSIGN[4] = (SWM->PINASSIGN[4] & 0xFF000000) | 0x00100FFF;
 
 	SWM->PINENABLE0.B.ADC_0 = 0;
+	SWM->PINENABLE0.B.ADC_1 = 0;
 
 
 	SYSCON->PDRUNCFG &= ~(1<<4);
@@ -307,8 +319,8 @@ static void InitADC()
 
 	while(ADC->CTRL & (1<<30));
 
-	ADC->CTRL = 0;
-	ADC->SEQA_CTRL = 1|(1<<18)|(1UL<<31)|(1<<26);
+	ADC->CTRL = 24;
+	ADC->SEQA_CTRL = 3|(1UL<<31)|(1<<27);
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
