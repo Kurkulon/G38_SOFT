@@ -30,6 +30,59 @@ static Dbt stopTacho(160);
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+
+#define UL 20 
+#define VL 21
+#define WL 22
+#define UH 17
+#define VH 18
+#define WH 19
+
+// D	HHH	WVUWVU  
+// R	WVU	LLLHHH  
+// 1	000	111111  
+// 1	001 P10P11  
+// 1	010	10P11P  
+// 1	011	P01P11  
+// 1	100	0P11P1  
+// 1	101	1P01P1  
+// 1	110	01P11P  
+// 1	111	111111  
+
+// 0	000	111111  
+// 0	001	01P11P  
+// 0	010	1P01P1  
+// 0	011	0P11P1  
+// 0	100	P01P11  
+// 0	101	10P11P  
+// 0	110	P10P11  
+// 0	111	111111  
+
+byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F, 0x3F, 0x37, 0x2F, 0x2F, 0x1F, 0x37,  0x1F, 0x3F };
+
+
+byte t = 0;
+byte s = 0;
+
+bool dir = false;
+
+byte LG_pin[16] = { 0xFF, UL, VL, VL, WL, UL, WL, 0XFF, 0xFF, WL, UL, WL, VL, VL, UL, 0xFF };
+byte HG_pin[16] = { 0xFF, UH, VH, VH, WH, UH, WH, 0xFF, 0xFF, WH, UH, WH, VH, VH, UH, 0xFF };
+
+
+i32 destShaftPos = 0;
+
+
+
+
+
+
+
+
+
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 // HHH 
 // WVU  UV W
 //     00001111 EW
@@ -233,16 +286,21 @@ static void UpdateADC()
 {
 	using namespace HW;
 
-	fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;
+	static byte i = 0;
 
-	curADC = fcurADC >> 3;
+	#define CALL(p) case (__LINE__-S): p; break;
 
-	fvAP += (((ADC->DAT1&0xFFF0) * 3300) >> 16) - vAP;
+	enum C { S = (__LINE__+3) };
+	switch(i++)
+	{
+		CALL( fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;	curADC = fcurADC >> 3;	);
+		CALL( fvAP += (((ADC->DAT1&0xFFF0) * 3300) >> 16) - vAP; vAP = fvAP >> 3;	);
+	};
 
-	vAP = fvAP >> 3;
+//	i = (i > (__LINE__-S-3)) ? 0 : i;
+	i &= 1;
 
-
-//	ADC->SEQA_CTRL = 1|(1<<18)|(1UL<<31)|(1<<26);
+	#undef CALL
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -329,12 +387,66 @@ static __irq void TahoHandler()
 {
 	tachoCount++;
 
+	t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
+
+	HW::SWM->CTOUT_0 = LG_pin[t];
+	HW::SWM->CTOUT_1 = HG_pin[t];
+
+	s = states[t];
+
+	HW::GPIO->MPIN0 = (u32)s << 17;
+
 	shaftPos += tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
 
 	HW::PIN_INT->IST = 7;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void PID_Update()
+{
+	static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
+	dword t = GetMilliseconds();
+	dword dt = t - pt;
+
+	static float e1 = 0, e2 = 0;
+	static float out = 0;
+
+	const float Kp = 10, Ki = 0.0001, Kd = 0.01;
+
+	float e;
+
+	if (dt > 0)
+	{
+		pt = t;
+
+		e = destShaftPos - GetShaftPos();
+		
+		float kp = Kp;
+		float kdd = Kd * 1000 / dt;
+		float kid = Ki * 1000 / dt;
+
+		out += (kp * (e - e1) + kid * e + kdd * (e - e1 * 2  + e2));
+
+		
+		if (out < -100) 
+		{
+			out = -100;
+		}
+		else if (out > 100)
+		{
+			out = 100;
+		};
+
+		dir = (out > 0);
+
+		SetDutyPWM(ABS(out)*12);
+
+		e2 = e1; e1 = e;
+	};
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void InitTaho()
 {
@@ -372,7 +484,20 @@ void InitHardware()
 
 void UpdateHardware()
 {
-	UpdateADC();
+	static byte i = 0;
+
+	#define CALL(p) case (__LINE__-S): p; break;
+
+	enum C { S = (__LINE__+3) };
+	switch(i++)
+	{
+		CALL( UpdateADC() );
+		CALL( PID_Update() );
+	};
+
+//	i = (i > (__LINE__-S-3)) ? 0 : i;
+	i &= 1;
+	
 //	UpdateMotor();
 }
 
