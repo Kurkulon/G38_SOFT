@@ -15,16 +15,13 @@ extern void StartValve(bool dir, u32 tacho, u32 time, u16 lim);
 
 inline i32 GetShaftPos() { extern i32 shaftPos; return shaftPos; }
 
+inline void SetDestShaftPos(i32 v) { extern i32 destShaftPos; destShaftPos = v; }
+
 inline u32 GetTachoCount() { extern u32 tachoCount; return tachoCount; }
 
+extern void SetDutyPWMDir(i32 v);
 
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-inline void SetDutyPWM(u16 v)
-{
-	HW::SCT->MATCHREL_L[0] = (v < HW::SCT->MATCH_L[1]) ? v : HW::SCT->MATCH_L[1];
-}
+extern void SetDutyPWM(u16 v);
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

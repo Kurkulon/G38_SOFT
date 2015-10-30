@@ -39,39 +39,48 @@ static Dbt stopTacho(160);
 #define WH 19
 
 // D	HHH	WVUWVU  
-// R	WVU	LLLHHH  
+// R	WVU	LLLHHH 
+
 // 1	000	111111  
-// 1	001 P10P11  
-// 1	010	10P11P  
-// 1	011	P01P11  
-// 1	100	0P11P1  
-// 1	101	1P01P1  
-// 1	110	01P11P  
+// 1	001 P10P11  1  
+// 1	010	10P11P  5
+// 1	011	P01P11  6
+// 1	100	0P11P1  3
+// 1	101	1P01P1  2
+// 1	110	01P11P  4
 // 1	111	111111  
 
 // 0	000	111111  
-// 0	001	01P11P  
-// 0	010	1P01P1  
-// 0	011	0P11P1  
-// 0	100	P01P11  
-// 0	101	10P11P  
-// 0	110	P10P11  
+// 0	001	01P11P  5
+// 0	010	1P01P1  1
+// 0	011	0P11P1  6
+// 0	100	P01P11  3 
+// 0	101	10P11P  4
+// 0	110	P10P11  2
 // 0	111	111111  
 
-byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F, 0x3F, 0x37, 0x2F, 0x2F, 0x1F, 0x37,  0x1F, 0x3F };
+byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,			0x3F, 0x37, 0x2F, 0x2F, 0x1F, 0x37, 0x1F, 0x3F };
+
+//byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,		0x3F, 0x3F, 0x2F, 0x2F, 0x3F, 0x3F,  0x3F, 0x3F };
 
 
 byte t = 0;
 byte s = 0;
 
-bool dir = false;
+bool dir = true;
 
-byte LG_pin[16] = { 0xFF, UL, VL, VL, WL, UL, WL, 0XFF, 0xFF, WL, UL, WL, VL, VL, UL, 0xFF };
-byte HG_pin[16] = { 0xFF, UH, VH, VH, WH, UH, WH, 0xFF, 0xFF, WH, UH, WH, VH, VH, UH, 0xFF };
+byte LG_pin[16] =		{ 0xFF, UL, VL, VL, WL, UL, WL, 0XFF,		0xFF, WL, UL, WL, VL, VL, UL, 0xFF };
+byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, WH, UH, WH, VH, VH, UH, 0xFF };
+
+//byte LG_pin[16] =		{ 0xFF, UL, VL, VL, WL, UL, WL, 0XFF,		0xFF, 0xFF, UL, WL, 0xFF, 0xFF, 0xFF, 0xFF };
+//byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, 0xFF, UH, WH, 0xFF, 0xFF, 0xFF, 0xFF };
 
 
 i32 destShaftPos = 0;
 
+static float pidOut = 0;
+
+u16 maxDuty = 500;
 
 
 
@@ -191,19 +200,72 @@ extern "C" void SystemInit()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-inline void StartMotor()
+inline void LockShaftPos()
 {
-	HW::GPIO->CLR0 = (1<<22)|(1<<14);
+	pidOut = 0;
+	destShaftPos = shaftPos;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-inline void StopMotor()
+static void PID_Update()
 {
-	HW::GPIO->SET0 = (1<<22)|(1<<14);
+	static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
+	dword t = GetMilliseconds();
+	dword dt = t - pt;
+
+	static float e1 = 0, e2 = 0;
+
+	const float Kp = 32, Ki = 0.0004, Kd = 0.01;
+
+	float e;
+
+	u16 maxOut;
+
+	if (dt > 0)
+	{
+		pt = t;
+
+		e = destShaftPos - GetShaftPos();
+		
+		float kp = Kp;
+		float kdd = Kd * 1000 / dt;
+		float kid = Ki * 1000 / dt;
+
+		pidOut += (kp * (e - e1) + kid * e + kdd * (e - e1 * 2  + e2));
+
+		maxOut = maxDuty / 5;
+		
+		if (pidOut < -maxOut) 
+		{
+			pidOut = -maxOut;
+		}
+		else if (pidOut > maxOut)
+		{
+			pidOut = maxOut;
+		};
+
+		SetDutyPWMDir(pidOut);
+
+		e2 = e1; e1 = e;
+	};
 }
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//inline void StartMotor()
+//{
+//	HW::GPIO->CLR0 = (1<<22)|(1<<14);
+//}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//inline void StopMotor()
+//{
+//	HW::GPIO->SET0 = (1<<22)|(1<<14);
+//}
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -218,11 +280,11 @@ void StartValve(bool dir, u32 tacho, u32 time, u16 lim)
 	lockTacho.Check(false);
 	limCur = lim;
 
-	if (dir) { HW::GPIO->SET0 = 1<<23; } else { HW::GPIO->CLR0 = 1<<23; };
+	::dir = dir;
 
-	SetDutyPWM(3000);
+//	SetDutyPWM(3000);
 
-	StartMotor();
+//	StartMotor();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -235,6 +297,7 @@ static void UpdateMotor()
 	{
 		case 0:		// Idle;
 
+			PID_Update();
 			break;
 
 		case 1:
@@ -244,7 +307,7 @@ static void UpdateMotor()
  
 			if (t >= reqTime || tacho >= reqTacho || lockTacho.Check(((tacho - prevTacho) == 0) && (t >= 20)) || lockCur.Check((curADC > limCur) && (t >= 100)) || maxCur.Check((curADC > 1500)))
 			{
-				StopMotor();
+				SetDutyPWM(0);
 				motorState = 2;
 				stopTime = GetMilliseconds();
 				stopTacho.Check(false);
@@ -256,11 +319,11 @@ static void UpdateMotor()
 
 				if (t < 50)
 				{ 
-					SetDutyPWM(t * 25); 
+					SetDutyPWM(t * maxDuty / 50); 
 				}
 				else if ((t >= 60) && (t < 100))
 				{
-					SetDutyPWM(1250 - (t - 60) * 5); 
+					SetDutyPWM(maxDuty - (t - 60) * maxDuty / 80); 
 				};
 
 			};
@@ -269,12 +332,8 @@ static void UpdateMotor()
 
 		case 2:
 
-			if (stopTacho.Check((tachoCount - prevTacho) == 0))
-			{
-				motorState = 0;
-			};
-
-			prevTacho = tachoCount;
+			LockShaftPos();
+			motorState = 0;
 
 			break;
 	};
@@ -314,7 +373,7 @@ static void InitPWM()
 	SCT->STATE_L = 0;
 	SCT->REGMODE_L = 0;
 
-	SCT->MATCHREL_L[0] = 1240; 
+	SCT->MATCHREL_L[0] = maxDuty; 
 	SCT->MATCHREL_L[1] = 1200;
 	SCT->MATCHREL_L[2] = 1250; 
 	SCT->MATCH_L[3] = 0; 
@@ -359,6 +418,29 @@ static void InitPWM()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+void SetDutyPWM(u16 v)
+{
+	HW::SCT->MATCHREL_L[0] = (v < maxDuty) ? v : maxDuty;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+void SetDutyPWMDir(i32 v)
+{
+	if (v < 0)
+	{
+		v = -v; dir = false;
+	}
+	else
+	{
+		dir = true;
+	};
+
+	HW::SCT->MATCHREL_L[0] = (v < maxDuty) ? v : maxDuty;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static void InitADC()
 {
 	using namespace HW;
@@ -389,12 +471,12 @@ static __irq void TahoHandler()
 
 	t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
 
-	HW::SWM->CTOUT_0 = LG_pin[t];
-	HW::SWM->CTOUT_1 = HG_pin[t];
-
 	s = states[t];
 
 	HW::GPIO->MPIN0 = (u32)s << 17;
+
+	HW::SWM->CTOUT_0 = LG_pin[t];
+	HW::SWM->CTOUT_1 = HG_pin[t];
 
 	shaftPos += tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
 
@@ -403,54 +485,38 @@ static __irq void TahoHandler()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static void PID_Update()
+static void TahoSync()
 {
-	static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
-	dword t = GetMilliseconds();
-	dword dt = t - pt;
+	static u16 pt = 0;
 
-	static float e1 = 0, e2 = 0;
-	static float out = 0;
-
-	const float Kp = 10, Ki = 0.0001, Kd = 0.01;
-
-	float e;
-
-	if (dt > 0)
+	if (GetMillisecondsLow() != pt)
 	{
-		pt = t;
+		pt = GetMillisecondsLow();
 
-		e = destShaftPos - GetShaftPos();
+		__disable_irq();
 		
-		float kp = Kp;
-		float kdd = Kd * 1000 / dt;
-		float kid = Ki * 1000 / dt;
+		byte t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
 
-		out += (kp * (e - e1) + kid * e + kdd * (e - e1 * 2  + e2));
+		byte s = states[t];
 
-		
-		if (out < -100) 
-		{
-			out = -100;
-		}
-		else if (out > 100)
-		{
-			out = 100;
-		};
+		HW::GPIO->MPIN0 = (u32)s << 17;
 
-		dir = (out > 0);
+		HW::SWM->CTOUT_0 = LG_pin[t];
+		HW::SWM->CTOUT_1 = HG_pin[t];
 
-		SetDutyPWM(ABS(out)*12);
-
-		e2 = e1; e1 = e;
+		__enable_irq();
 	};
 }
 
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void InitTaho()
 {
 	using namespace HW;
+
+
+	IOCON->PIO0_8.B.HYS = 1;
+	IOCON->PIO0_9.B.HYS = 1;
 
 	SYSCON->PINTSEL[0] = 8;
 	SYSCON->PINTSEL[1] = 9;
@@ -466,6 +532,15 @@ static void InitTaho()
 	VectorTableExt[PININT1_IRQ] = TahoHandler;
 	VectorTableExt[PININT2_IRQ] = TahoHandler;
 	CM0::NVIC->ISER[0] = 7<<PININT0_IRQ;
+
+	GPIO->SET0 = (1<<14);
+
+	GPIO->SET0 = (0x3F<<17);
+
+	GPIO->MASK0 = ~(7 << 20);
+
+	GPIO->MPIN0 = 0xFF;
+
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -486,19 +561,20 @@ void UpdateHardware()
 {
 	static byte i = 0;
 
+	static TM32 tm;
+
+
 	#define CALL(p) case (__LINE__-S): p; break;
 
 	enum C { S = (__LINE__+3) };
 	switch(i++)
 	{
 		CALL( UpdateADC() );
-		CALL( PID_Update() );
+		CALL( TahoSync() );
+		CALL( UpdateMotor() );
 	};
 
-//	i = (i > (__LINE__-S-3)) ? 0 : i;
-	i &= 1;
-	
-//	UpdateMotor();
+	i = (i > (__LINE__-S-3)) ? 0 : i;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

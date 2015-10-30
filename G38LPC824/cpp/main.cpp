@@ -2,6 +2,7 @@
 #include "time.h"
 #include "ComPort.h"
 #include "crc16.h"
+#include <math.h>
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -29,105 +30,62 @@ int main()
 
 //	OpenValve(1000, -1);
 
-	HW::GPIO->SET0 = (1<<14);
-
-	HW::GPIO->SET0 = (0x3F<<17);
-
-	HW::GPIO->MASK0 = ~(7 << 20);
-
-	HW::GPIO->MPIN0 = 0xFF;
-
-	SetDutyPWM(1200);
+//	SetDutyPWMDir(500);
 
 	static byte i = 0;
 
+	static i32 pwm = 1200;
+
+	static i32 dest = 1200;
+
+//	SetDestShaftPos(dest);
+
 	while (1)
 	{
-		UpdateHardware();
-
-
-
-//		PID_Update();
-
-
-		//if (HW::GPIO->PIN0 & 0x100)
-		//{
-		//	HW::GPIO->SET0 = (1<<20);
-		//	HW::GPIO->CLR0 = (1<<17);
-		//}
-		//else
-		//{
-		//	HW::GPIO->SET0 = (1<<17);
-		//	HW::GPIO->CLR0 = (1<<20);
-		//};
-
-
-		//HW::SCT->MATCHREL_L[0] = 1250;
-		//HW::GPIO->CLR0 = (1<<22)|(1<<14);
-		//HW::GPIO->CLR0 = (1<<23);
-   
-		//switch (i)
-		//{
-		//	case 0: 
-
-		//		if (c)
-		//		{
-		//			OpenValve(12, 200, 2000);
-		//		}
-		//		else
-		//		{
-		//			CloseValve(100, 1000, 1000);
-		//		};
-
-		//		c = !c;
-
-		//		i++;
-
-		//		break;
-
-		//	case 1:
-
-		//		if (IsMotorIdle())
-		//		{
-		//			i++;
-		//		};
-
-		//		break;
-
-		//	case 2:
-
-		//		if ((GetMilliseconds()- GetMotorStopTime()) >= 500)
-		//		{
-		//			i = 0;
-		//		};
-
-		//		break;
-		//}; // switch (i)
-
 		HW::GPIO->NOT0 = 1<<12;
 
+		UpdateHardware();
 
-		if (tm.Check(1000))
+//		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
+   
+		switch (i)
 		{
-//			HW::GPIO->NOT0 = (1<<14);
+			case 0: 
 
-			//t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
+				if (c)
+				{
+					OpenValve(12, 200, 2000);
+				}
+				else
+				{
+					CloseValve(36, 300, 1000);
+				};
 
-			//HW::SWM->CTOUT_0 = LG_pin[t];
-			//HW::SWM->CTOUT_1 = HG_pin[t];
+				c = !c;
 
-			//s = states[t];
+				i++;
 
-			//HW::GPIO->MPIN0 = (u32)s << 17;
+				break;
 
-//			com.TransmitByte(sec++);
+			case 1:
 
-//			destShaftPos = -destShaftPos;
+				if (IsMotorIdle())
+				{
+					tm.Reset();
+					i++;
+				};
 
-		//	destShaftPos += 1;
+				break;
 
-			//dir = !dir;
-		};
+			case 2:
+
+				if (tm.Check(500))
+				{
+					i = 0;
+				};
+
+				break;
+		}; // switch (i)
 
 	}; // while (1)
 }
