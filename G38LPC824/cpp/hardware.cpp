@@ -59,9 +59,9 @@ static Dbt stopTacho(160);
 // 0	110	P10P11  2
 // 0	111	111111  
 
-byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,			0x3F, 0x37, 0x2F, 0x2F, 0x1F, 0x37, 0x1F, 0x3F };
+byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,		0x3F, 0x37, 0x2F, 0x2F, 0x1F, 0x37, 0x1F, 0x3F };
 
-//byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,		0x3F, 0x3F, 0x2F, 0x2F, 0x3F, 0x3F,  0x3F, 0x3F };
+//byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,			0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x37, 0x3F, 0x3F };
 
 
 byte t = 0;
@@ -72,15 +72,16 @@ bool dir = true;
 byte LG_pin[16] =		{ 0xFF, UL, VL, VL, WL, UL, WL, 0XFF,		0xFF, WL, UL, WL, VL, VL, UL, 0xFF };
 byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, WH, UH, WH, VH, VH, UH, 0xFF };
 
-//byte LG_pin[16] =		{ 0xFF, UL, VL, VL, WL, UL, WL, 0XFF,		0xFF, 0xFF, UL, WL, 0xFF, 0xFF, 0xFF, 0xFF };
-//byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, 0xFF, UH, WH, 0xFF, 0xFF, 0xFF, 0xFF };
+//byte LG_pin[16] =		{ 0xFF, UL, VL, VL, WL, UL, WL, 0XFF,		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, VL, 0xFF, 0xFF };
+//byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, VH, 0xFF, 0xFF };
 
 
 i32 destShaftPos = 0;
 
 static float pidOut = 0;
 
-u16 maxDuty = 500;
+const u16 maxDuty = 200;
+u16 duty = 0, curd = 0;
 
 
 
@@ -317,15 +318,27 @@ static void UpdateMotor()
 			{
 				prevTacho = tacho;
 
-				if (t < 50)
+				duty = maxDuty;
+
+				if (t < 5)
 				{ 
-					SetDutyPWM(t * maxDuty / 50); 
+					duty = t * maxDuty / 5; 
 				}
 				else if ((t >= 60) && (t < 100))
 				{
-					SetDutyPWM(maxDuty - (t - 60) * maxDuty / 80); 
+					duty = maxDuty - (t - 60) * maxDuty / 80; 
 				};
 
+				//if (curADC > 200)
+				//{
+				//	curd = (curADC-200) * 1;
+
+				//	if (curd > duty) curd = duty;
+
+				//	duty -= curd;
+				//}
+
+				SetDutyPWM(duty);
 			};
 
 			break;
@@ -374,8 +387,8 @@ static void InitPWM()
 	SCT->REGMODE_L = 0;
 
 	SCT->MATCHREL_L[0] = maxDuty; 
-	SCT->MATCHREL_L[1] = 1200;
-	SCT->MATCHREL_L[2] = 1250; 
+	SCT->MATCHREL_L[1] = 230;
+	SCT->MATCHREL_L[2] = 250; 
 	SCT->MATCH_L[3] = 0; 
 	SCT->MATCH_L[4] = 0;
 
@@ -473,6 +486,7 @@ static __irq void TahoHandler()
 
 	s = states[t];
 
+	HW::GPIO->MASK0 = ~(0x3F << 17);
 	HW::GPIO->MPIN0 = (u32)s << 17;
 
 	HW::SWM->CTOUT_0 = LG_pin[t];
@@ -499,6 +513,7 @@ static void TahoSync()
 
 		byte s = states[t];
 
+		HW::GPIO->MASK0 = ~(0x3F << 17);
 		HW::GPIO->MPIN0 = (u32)s << 17;
 
 		HW::SWM->CTOUT_0 = LG_pin[t];

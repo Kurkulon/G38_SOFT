@@ -19,7 +19,7 @@ static byte sec = 0;
 
 int main()
 {
-	static bool c = false;
+	static bool c = true;
 
 	TM32 tm;
 	Dbt db(100);
@@ -30,7 +30,7 @@ int main()
 
 //	OpenValve(1000, -1);
 
-//	SetDutyPWMDir(500);
+	SetDutyPWMDir(230);
 
 	static byte i = 0;
 
@@ -54,11 +54,11 @@ int main()
 
 				if (c)
 				{
-					OpenValve(12, 200, 2000);
+					OpenValve(1000, 3000, 2000);
 				}
 				else
 				{
-					CloseValve(36, 300, 1000);
+					CloseValve(1000, 3000, 1000);
 				};
 
 				c = !c;
@@ -79,7 +79,7 @@ int main()
 
 			case 2:
 
-				if (tm.Check(500))
+				if (tm.Check(1000))
 				{
 					i = 0;
 				};
