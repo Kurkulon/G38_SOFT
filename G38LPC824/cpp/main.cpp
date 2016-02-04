@@ -36,9 +36,9 @@ int main()
 
 	static i32 pwm = 1200;
 
-	static i32 dest = 1200;
+	static i32 dest = 12;
 
-//	SetDestShaftPos(dest);
+	SetDestShaftPos(0);
 
 	while (1)
 	{
@@ -54,11 +54,11 @@ int main()
 
 				if (c)
 				{
-					OpenValve(1000, 3000, 2000);
+					OpenValve(20, 200, 2000);
 				}
 				else
 				{
-					CloseValve(1000, 3000, 1000);
+					CloseValve(1000, 1000, 50);
 				};
 
 				c = !c;
@@ -81,6 +81,7 @@ int main()
 
 				if (tm.Check(1000))
 				{
+//					SetDestShaftPos(dest = -dest);
 					i = 0;
 				};
 

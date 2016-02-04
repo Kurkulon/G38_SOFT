@@ -17,6 +17,8 @@ byte motorState = 0;
 static u32 reqTacho = 0;
 static u32 reqTime = 0;
 static u16 limCur = 500;
+static u16 maxCur = 0;
+static u16 minCur = 0;
 //static u16 holdCur = 0;
 static u32 startTacho = 0;
 u32 startTime = 0;
@@ -25,7 +27,7 @@ static u32 prevTacho = 0;
 //static u32 brakeTime = 160;
 static Dbt lockTacho(1000);
 static Dbt lockCur(5);
-static Dbt maxCur(10);
+//static Dbt maxCur(10);
 static Dbt stopTacho(160);
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -80,7 +82,7 @@ i32 destShaftPos = 0;
 
 static float pidOut = 0;
 
-const u16 maxDuty = 200;
+const u16 maxDuty = 100;
 u16 duty = 0, curd = 0;
 
 
@@ -204,7 +206,7 @@ extern "C" void SystemInit()
 inline void LockShaftPos()
 {
 	pidOut = 0;
-	destShaftPos = shaftPos;
+	destShaftPos = shaftPos-1;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -235,7 +237,7 @@ static void PID_Update()
 
 		pidOut += (kp * (e - e1) + kid * e + kdd * (e - e1 * 2  + e2));
 
-		maxOut = maxDuty / 5;
+		maxOut = maxDuty / 2;
 		
 		if (pidOut < -maxOut) 
 		{
@@ -246,7 +248,7 @@ static void PID_Update()
 			pidOut = maxOut;
 		};
 
-		SetDutyPWMDir(pidOut);
+		SetDutyPWMDir(-pidOut);
 
 		e2 = e1; e1 = e;
 	};
@@ -280,6 +282,8 @@ void StartValve(bool dir, u32 tacho, u32 time, u16 lim)
 	lockCur.Check(false);
 	lockTacho.Check(false);
 	limCur = lim;
+	maxCur = 0;
+	minCur = 30000;
 
 	::dir = dir;
 
@@ -306,7 +310,10 @@ static void UpdateMotor()
 			t = GetMilliseconds() - startTime;
 			tacho = tachoCount - startTacho;
  
-			if (t >= reqTime || tacho >= reqTacho || lockTacho.Check(((tacho - prevTacho) == 0) && (t >= 20)) || lockCur.Check((curADC > limCur) && (t >= 100)) || maxCur.Check((curADC > 1500)))
+			if (t >= reqTime 
+				|| tacho >= reqTacho 
+				|| lockTacho.Check(((tacho - prevTacho) == 0) && (t >= 20)) 
+				|| lockCur.Check(((curADC > (limCur+minCur)) || (curADC > maxCur)) && (t >= 50)))
 			{
 				SetDutyPWM(0);
 				motorState = 2;
@@ -318,15 +325,30 @@ static void UpdateMotor()
 			{
 				prevTacho = tacho;
 
-				duty = maxDuty;
+				//duty = maxDuty;
 
-				if (t < 5)
+				if (t <= 5)
 				{ 
 					duty = t * maxDuty / 5; 
 				}
 				else if ((t >= 60) && (t < 100))
 				{
 					duty = maxDuty - (t - 60) * maxDuty / 80; 
+				};
+
+				if (t < 20)
+				{
+					if (curADC > maxCur)
+					{
+						maxCur = curADC;
+					};
+				}
+				else
+				{
+					if (curADC < minCur)
+					{
+						minCur = curADC;
+					};
 				};
 
 				//if (curADC > 200)
