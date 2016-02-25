@@ -5,9 +5,6 @@
 #include "types.h"
 #include "core.h"
 
-#define COM_RS232 0
-#define COM_RS485 1
-
 #ifdef WIN32
 #include <windows.h>
 #endif
@@ -41,18 +38,18 @@ class ComPort
 		T_HW::S_USART	*usart;
 		const dword		maskRTS;
 
-		byte*		rdata;
-		u16			rlen;
+		//byte*		rdata;
+		//u16			rlen;
 
-		byte*		wdata;
-		u16			wlen;
+		//byte*		wdata;
+		//u16			wlen;
 
-		T_HW::LPC_IHP	ir;
-		T_HW::LPC_IHP	iw;
+		//T_HW::LPC_IHP	ir;
+		//T_HW::LPC_IHP	iw;
 
-		byte			ivect;
+		//byte			ivect;
 
-		u32				tm;
+		//u32				tm;
 	};
 
 	static ComBase _bases[3];
@@ -61,7 +58,13 @@ class ComPort
 	byte			_status485;
 	byte			_portNum;
 
-//	word			_prevDmaCounter;
+	byte			_txDmaCh;
+	u32				_txDmaMask;
+
+	byte			_rxDmaCh;
+	u32				_rxDmaMask;
+
+	u16				_prevDmaCounter;
 
 	ReadBuffer		*_pReadBuffer;
 	WriteBuffer		*_pWriteBuffer;
@@ -74,8 +77,8 @@ class ComPort
 
 	//dword			_startTransmitTime;
 	//dword			_startReceiveTime;
-	//dword			_preReadTimeout;
-	//dword			_postReadTimeout;
+	dword			_preReadTimeout;
+	dword			_postReadTimeout;
 
 	T_HW::S_USART 	*_usart;
 
@@ -87,19 +90,19 @@ class ComPort
 	//static		bool _InitCom(byte i, ComPort* cp);
 	//static		bool _DeinitCom(byte i, ComPort* cp);
 
-	static ComPort *_objCom1;
-	static ComPort *_objCom2;
-	static ComPort *_objCom3;
+	//static ComPort *_objCom1;
+	//static ComPort *_objCom2;
+	//static ComPort *_objCom3;
 
 	word 		BoudToPresc(dword speed);
 
-	static __irq void ReadHandler_0();
-	static __irq void ReadHandler_1();
-	static __irq void ReadHandler_2();
+	//static __irq void ReadHandler_0();
+	//static __irq void ReadHandler_1();
+	//static __irq void ReadHandler_2();
 
-	static __irq void WriteHandler_0();
-	static __irq void WriteHandler_1();
-	static __irq void WriteHandler_2();
+	//static __irq void WriteHandler_0();
+	//static __irq void WriteHandler_1();
+	//static __irq void WriteHandler_2();
 
 
 

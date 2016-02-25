@@ -46,6 +46,54 @@ extern byte core_sys_array[0x100000];
 #define	PININT6_IRQ	30   	/*!< External Interrupt 6                             */
 #define	PININT7_IRQ	31   	/*!< External Interrupt 7                             */
 
+// DMA_CFG
+
+#define PERIPHREQEN     (1 << 0)	/*!< Enables Peripheral DMA requests */
+#define HWTRIGEN        (1 << 1)	/*!< Use hardware triggering via imput mux */
+#define TRIGPOL_LOW     (0 << 4)	/*!< Hardware trigger is active low or falling edge */
+#define TRIGPOL_HIGH    (1 << 4)	/*!< Hardware trigger is active high or rising edge */
+#define TRIGTYPE_EDGE   (0 << 5)	/*!< Hardware trigger is edge triggered */
+#define TRIGTYPE_LEVEL  (1 << 5)	/*!< Hardware trigger is level triggered */
+#define TRIGBURST_SNGL  (0 << 6)	/*!< Single transfer. Hardware trigger causes a single transfer */
+#define TRIGBURST_BURST (1 << 6)	/*!< Burst transfer (see UM) */
+#define BURSTPOWER_1    (0 << 8)	/*!< Set DMA burst size to 1 transfer */
+#define BURSTPOWER_2    (1 << 8)	/*!< Set DMA burst size to 2 transfers */
+#define BURSTPOWER_4    (2 << 8)	/*!< Set DMA burst size to 4 transfers */
+#define BURSTPOWER_8    (3 << 8)	/*!< Set DMA burst size to 8 transfers */
+#define BURSTPOWER_16   (4 << 8)	/*!< Set DMA burst size to 16 transfers */
+#define BURSTPOWER_32   (5 << 8)	/*!< Set DMA burst size to 32 transfers */
+#define BURSTPOWER_64   (6 << 8)	/*!< Set DMA burst size to 64 transfers */
+#define BURSTPOWER_128  (7 << 8)	/*!< Set DMA burst size to 128 transfers */
+#define BURSTPOWER_256  (8 << 8)	/*!< Set DMA burst size to 256 transfers */
+#define BURSTPOWER_512  (9 << 8)	/*!< Set DMA burst size to 512 transfers */
+#define BURSTPOWER_1024 (10 << 8)	/*!< Set DMA burst size to 1024 transfers */
+#define BURSTPOWER(n)   ((n) << 8)	/*!< Set DMA burst size to 2^n transfers, max n=10 */
+#define SRCBURSTWRAP    (1 << 14)	/*!< Source burst wrapping is enabled for this DMA channel */
+#define DSTBURSTWRAP    (1 << 15)	/*!< Destination burst wrapping is enabled for this DMA channel */
+#define CHPRIORITY(p)   ((p) << 16)	/*!< Sets DMA channel priority, min 0 (highest), max 3 (lowest) */
+
+
+// DMA_XFERCFG
+
+#define CFGVALID        (1 << 0)	/*!< Configuration Valid flag */
+#define RELOAD          (1 << 1)	/*!< Indicates whether the channels control structure will be reloaded when the current descriptor is exhausted */
+#define SWTRIG          (1 << 2)	/*!< Software Trigger */
+#define CLRTRIG         (1 << 3)	/*!< Clear Trigger */
+#define SETINTA         (1 << 4)	/*!< Set Interrupt flag A for this channel to fire when descriptor is complete */
+#define SETINTB         (1 << 5)	/*!< Set Interrupt flag B for this channel to fire when descriptor is complete */
+#define WIDTH_8         (0 << 8)	/*!< 8-bit transfers are performed */
+#define WIDTH_16        (1 << 8)	/*!< 16-bit transfers are performed */
+#define WIDTH_32        (2 << 8)	/*!< 32-bit transfers are performed */
+#define SRCINC_0        (0 << 12)	/*!< DMA source address is not incremented after a transfer */
+#define SRCINC_1        (1 << 12)	/*!< DMA source address is incremented by 1 (width) after a transfer */
+#define SRCINC_2        (2 << 12)	/*!< DMA source address is incremented by 2 (width) after a transfer */
+#define SRCINC_4        (3 << 12)	/*!< DMA source address is incremented by 4 (width) after a transfer */
+#define DSTINC_0        (0 << 14)	/*!< DMA destination address is not incremented after a transfer */
+#define DSTINC_1        (1 << 14)	/*!< DMA destination address is incremented by 1 (width) after a transfer */
+#define DSTINC_2        (2 << 14)	/*!< DMA destination address is incremented by 2 (width) after a transfer */
+#define DSTINC_4        (3 << 14)	/*!< DMA destination address is incremented by 4 (width) after a transfer */
+#define XFERCOUNT(n)    ((n - 1) << 16)	/*!< DMA transfer count in 'transfers', between (0)1 and (1023)1024 */
+
 
 namespace T_HW
 {
@@ -653,8 +701,77 @@ namespace T_HW
 	};
 	
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	struct DMADESC
+	{
+		LPC_REG	CFG;
+		LPC_PTR SEA;
+		LPC_PTR DEA;
+		LPC_PTR NEXT;
+	};
+
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	struct S_DMA
+	{
+		LPC_REG  CTRL;                              /*!< (@ 0x50008000) DMA control.                                           */
+		LPC_REG  INTSTAT;                           /*!< (@ 0x50008004) Interrupt status.                                      */
+		LPC_PTR  SRAMBASE;                          /*!< (@ 0x50008008) SRAM address of the channel configuration table.       */
+		LPC_REG  z_RESERVED0[5];
+		LPC_REG  ENABLESET0;                        /*!< (@ 0x50008020) Channel Enable read and Set for all DMA channels.      */
+		LPC_REG  z_RESERVED1;
+		LPC_REG  ENABLECLR0;                        /*!< (@ 0x50008028) Channel Enable Clear for all DMA channels.             */
+		LPC_REG  z_RESERVED2;
+		LPC_REG  ACTIVE0;                           /*!< (@ 0x50008030) Channel Active status for all DMA channels.            */
+		LPC_REG  z_RESERVED3;
+		LPC_REG  BUSY0;                             /*!< (@ 0x50008038) Channel Busy status for all DMA channels.              */
+		LPC_REG  z_RESERVED4;
+		LPC_REG  ERRINT0;                           /*!< (@ 0x50008040) Error Interrupt status for all DMA channels.           */
+		LPC_REG  z_RESERVED5;
+		LPC_REG  INTENSET0;                         /*!< (@ 0x50008048) Interrupt Enable read and Set for all DMA channels.    */
+		LPC_REG  z_RESERVED6;
+		LPC_REG  INTENCLR0;                         /*!< (@ 0x50008050) Interrupt Enable Clear for all DMA channels.           */
+		LPC_REG  z_RESERVED7;
+		LPC_REG  INTA0;                             /*!< (@ 0x50008058) Interrupt A status for all DMA channels.               */
+		LPC_REG  z_RESERVED8;
+		LPC_REG  INTB0;                             /*!< (@ 0x50008060) Interrupt B status for all DMA channels.               */
+		LPC_REG  z_RESERVED9;
+		LPC_REG  SETVALID0;                         /*!< (@ 0x50008068) Set ValidPending control bits for all DMA channels.    */
+		LPC_REG  z_RESERVED10;
+		LPC_REG  SETTRIG0;                          /*!< (@ 0x50008070) Set Trigger control bits for all DMA channels.         */
+		LPC_REG  z_RESERVED11;
+		LPC_REG  ABORT0;                            /*!< (@ 0x50008078) Channel Abort control for all DMA channels.            */
+		LPC_REG  z_RESERVED12[225];
+
+
+		struct	S_CHNL
+		{
+			LPC_REG  CFG;      
+			LPC_REG  CTLSTAT;  
+			LPC_REG  XFERCFG;  
+			LPC_REG  z_res;
+		};					
+		
+		S_CHNL	CH[18];
+	};
+
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	struct S_DMATRIGMUX
+	{
+		LPC_REG	INMUX[18];	// Input mux register for trigger inputs 0 to 23 connected to DMA channel 0. Selects from ADC, SCT, ACMP, pin interrupts, and DMA requests.
+	};
+
+	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	struct S_INPUTMUX
+	{
+		LPC_REG	DMA_INMUX[2];
+		
+		LPC_REG	_z_RESERVED0[6];
+		
+		LPC_REG	SCT0_INMUX[4];
+	};
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -683,6 +800,8 @@ namespace HW
 	MK_PTR(SWM,				0x4000C000);
 	MK_PTR(ADC,				0x4001C000);
 	MK_PTR(PMU,				0x40020000);
+	MK_PTR(DMATRIGMUX,		0x40028000);
+	MK_PTR(INPUTMUX,		0x4002C000);
 	MK_PTR(FLASHCTRL,		0x40040000);
 	MK_PTR(IOCON,			0x40044000);
 	MK_PTR(SYSCON,			0x40048000);
@@ -694,6 +813,7 @@ namespace HW
 
 	MK_PTR(CRC,				0x50000000);
 	MK_PTR(SCT,				0x50004000);
+	MK_PTR(DMA,				0x50008000);
 	MK_PTR(GPIO,			0xA0000000);
 	MK_PTR(PIN_INT,			0xA0004000);
 
@@ -710,6 +830,8 @@ namespace HW
 
 extern T_HW::LPC_IHP VectorTableInt[16];
 extern T_HW::LPC_IHP VectorTableExt[32];
+
+extern T_HW::DMADESC DmaTable[18];
 
 #undef MK_PTR
 #undef MKPID

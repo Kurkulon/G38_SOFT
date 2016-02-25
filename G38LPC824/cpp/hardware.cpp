@@ -82,7 +82,7 @@ i32 destShaftPos = 0;
 
 static float pidOut = 0;
 
-const u16 maxDuty = 100;
+const u16 maxDuty = 200;
 u16 duty = 0, curd = 0;
 
 
@@ -172,7 +172,7 @@ extern "C" void SystemInit()
 	using namespace CM0;
 	using namespace HW;
 
-	SYSCON->SYSAHBCLKCTRL |= CLK::SWM_M | CLK::IOCON_M | CLK::GPIO_M | HW::CLK::MRT_M | HW::CLK::UART0_M | HW::CLK::CRC_M;
+	SYSCON->SYSAHBCLKCTRL |= CLK::SWM_M | CLK::IOCON_M | CLK::GPIO_M | HW::CLK::MRT_M | HW::CLK::UART0_M | HW::CLK::CRC_M | HW::CLK::DMA_M;
 
 	GPIO->DIRSET0 = (1<<27)|(1<<14)|(1<<17)|(1<<18)|(1<<19)|(1<<20)|(1<<21)|(1<<22)|(1<<12);
 	GPIO->CLR0 = (1<<27)|(1<<14)|(1<<20)|(1<<21)|(1<<22);
@@ -199,6 +199,10 @@ extern "C" void SystemInit()
 	SYSCON->UARTCLKDIV = 1;
 	SWM->U0_RXD = 26;
 	SWM->U0_TXD = 16;
+
+	DMA->SRAMBASE = DmaTable;
+	DMA->CTRL = 1;
+
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

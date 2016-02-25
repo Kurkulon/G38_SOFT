@@ -12,7 +12,10 @@ u32 fps = 0;
 static ComPort com;
 static byte sec = 0;
 
+static ComPort::WriteBuffer wb;
+static ComPort::ReadBuffer rb;
 
+static byte buf[100];
 
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -26,7 +29,7 @@ int main()
 
 	InitHardware();
 
-	com.Connect(0, 115200, 0);
+	com.Connect(0, 1562500, 0);
 
 //	OpenValve(1000, -1);
 
@@ -47,6 +50,14 @@ int main()
 		UpdateHardware();
 
 //		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
+
+		if (!com.Update())
+		{
+			rb.data = buf;
+			rb.maxLen = sizeof(buf);
+			com.Read(&rb, -1, 100);
+		};
+
    
 		switch (i)
 		{
@@ -54,11 +65,11 @@ int main()
 
 				if (c)
 				{
-					OpenValve(20, 200, 2000);
+					OpenValve(200, 300, 2000);
 				}
 				else
 				{
-					CloseValve(1000, 1000, 50);
+					CloseValve(1000, 1000, 100);
 				};
 
 				c = !c;

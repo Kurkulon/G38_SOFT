@@ -58,6 +58,13 @@ VectorTableInt	SPACE	VecTableIntSize
 VectorTableExt	SPACE	VecTableExtSize				
 
 
+DmaTableSize	EQU		16*18	
+
+				AREA	DMATBL, NOINIT, READWRITE, ALIGN=9
+	            EXPORT  DmaTable
+
+DmaTable		SPACE	DmaTableSize				
+
                 PRESERVE8
                 THUMB
 
