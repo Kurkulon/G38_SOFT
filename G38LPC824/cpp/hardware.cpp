@@ -4,6 +4,8 @@
 
 #include "hardware.h"
 
+#include "ComPort.h"
+
 u16 curHV = 0;
 u16 reqHV = 800;
 u16 curADC = 0;
@@ -29,6 +31,21 @@ static Dbt lockTacho(1000);
 static Dbt lockCur(5);
 //static Dbt maxCur(10);
 static Dbt stopTacho(160);
+
+struct LogData
+{
+	u16 cur;
+	u16	ap;
+	i32 shaftPos;
+};
+
+static LogData log1[20];
+static LogData log2[20];
+
+static LogData *curLog = log1;
+static LogData *txLog = log2;
+
+static ComPort com;
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -260,6 +277,52 @@ static void PID_Update()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static void SetDutyCurrent(u16 cur)
+{
+	//static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
+	//dword t = GetMilliseconds();
+	//dword dt = t - pt;
+
+	static i32 e1 = 0;
+	static i32 duty = 0;
+
+	const i32 Kp = 1.0 * 65536, Ki = 0.008 * 65536;
+
+	i32 e;
+
+	if (cur > 0)
+	{
+//		pt = t;
+
+		e = (i32)cur - (i32)curADC;
+
+		duty += Kp * (e - e1) + Ki * e;
+
+		i16 t = duty / 65536;
+
+		if (t < 0) 
+		{
+			t = 0;
+		}
+		else if (t > maxDuty)
+		{
+			t = maxDuty;
+		};
+
+		SetDutyPWM(t);
+
+		e1 = e;
+	}
+	else
+	{
+		SetDutyPWM(duty = 0);
+		e1 = e = 0;
+	};
+
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //inline void StartMotor()
@@ -306,7 +369,8 @@ static void UpdateMotor()
 	{
 		case 0:		// Idle;
 
-			PID_Update();
+			SetDutyCurrent(0);
+//			PID_Update();
 			break;
 
 		case 1:
@@ -317,7 +381,7 @@ static void UpdateMotor()
 			if (t >= reqTime 
 				|| tacho >= reqTacho 
 				|| lockTacho.Check(((tacho - prevTacho) == 0) && (t >= 20)) 
-				|| lockCur.Check(((curADC > (limCur+minCur)) || (curADC > maxCur)) && (t >= 50)))
+				/*|| lockCur.Check(((curADC > (limCur+minCur)) || (curADC > maxCur)) && (t >= 50))*/)
 			{
 				SetDutyPWM(0);
 				motorState = 2;
@@ -329,31 +393,40 @@ static void UpdateMotor()
 			{
 				prevTacho = tacho;
 
+				SetDutyCurrent(limCur);
+
 				//duty = maxDuty;
 
-				if (t <= 5)
-				{ 
-					duty = t * maxDuty / 5; 
-				}
-				else if ((t >= 60) && (t < 100))
-				{
-					duty = maxDuty - (t - 60) * maxDuty / 80; 
-				};
+				//if (t <= 10)
+				//{ 
+				//	duty = t * maxDuty / 10; 
+				//}
+				//else if ((t >= 60) && (t < 100))
+				//{
+				//	duty = maxDuty;// - (t - 60) * maxDuty / 80; 
+				//};
 
-				if (t < 20)
-				{
-					if (curADC > maxCur)
-					{
-						maxCur = curADC;
-					};
-				}
-				else
-				{
-					if (curADC < minCur)
-					{
-						minCur = curADC;
-					};
-				};
+				//if (curADC > limCur)
+				//{
+				//	t = (curADC - limCur) >> 4;
+
+				//	duty -= (t < duty) ? t : duty;
+				//};
+
+				//if (t < 20)
+				//{
+				//	if (curADC > maxCur)
+				//	{
+				//		maxCur = curADC;
+				//	};
+				//}
+				//else
+				//{
+				//	if (curADC < minCur)
+				//	{
+				//		minCur = curADC;
+				//	};
+				//};
 
 				//if (curADC > 200)
 				//{
@@ -364,7 +437,7 @@ static void UpdateMotor()
 				//	duty -= curd;
 				//}
 
-				SetDutyPWM(duty);
+				//SetDutyPWM(duty);
 			};
 
 			break;
@@ -594,6 +667,50 @@ void InitHardware()
 	InitPWM();
 	InitTaho();
 //	StopMotor();
+
+	com.Connect(0, 921600, 0);
+
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateLog()
+{
+	static u16 pt = 0;
+
+	static LogData *plog = curLog;
+	static u16 n = ArraySize(log1);
+
+	static ComPort::WriteBuffer wb;
+
+	if (GetMillisecondsLow() != pt)
+	{
+		pt = GetMillisecondsLow();
+
+		plog->ap = vAP;
+		plog->cur = curADC;
+		plog->shaftPos = shaftPos;
+		
+		plog++;
+
+		n -= 1;
+
+		if (n == 0)
+		{
+			plog = txLog;
+			txLog = curLog;
+			curLog = plog;
+			n = ArraySize(log1);
+
+			wb.data = txLog;
+			wb.len = sizeof(log1);
+
+			com.Write(&wb);
+		};
+
+		com.Update();
+	};
+
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -613,6 +730,7 @@ void UpdateHardware()
 		CALL( UpdateADC() );
 		CALL( TahoSync() );
 		CALL( UpdateMotor() );
+		CALL( UpdateLog() );
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;

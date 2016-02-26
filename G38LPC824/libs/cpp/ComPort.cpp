@@ -64,7 +64,7 @@ bool ComPort::Connect(byte port, dword speed, byte parity)
 
 	_usart->CFG = _ModeRegister;
 	_usart->BRG = _BaudRateRegister;
-//	_usart->OSR = 4;
+	_usart->OSR = 8;
 
 	_status485 = READ_END;
 
@@ -93,7 +93,7 @@ word ComPort::BoudToPresc(dword speed)
 {
 	if (speed == 0) return 0;
 
-	return (MCK/8+speed) / 2 / speed - 1;
+	return (MCK/9+speed/2) / speed - 1;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -330,6 +330,7 @@ bool ComPort::Update()
 			else if (_prevDmaCounter != t)
 			{
 				HW::MRT->Channel[_portNum].INTVAL = _postReadTimeout;
+				_prevDmaCounter = t;
 			};
 
 			break;
