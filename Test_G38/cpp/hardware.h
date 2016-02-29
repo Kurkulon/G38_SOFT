@@ -8,6 +8,12 @@
 #include <windows.h>
 #endif
 
+struct LogData
+{
+	u16 cur;
+	u16	ap;
+	i32 shaftPos;
+};
 
 extern void InitHardware();
 extern void UpdateHardware();
@@ -35,7 +41,7 @@ extern int Printf(byte x, byte y, const char *format, ... );
 //inline void SetCurLim(float v) { extern float curLim; curLim = v; }
 
 extern void Printf16(word x, word y, word c, const char *format, ... );
-extern void DrawWave(byte n, void *data);
+extern void DrawWave(const u16 n, LogData *data);
 
 
 #endif // HARDWARE_H__15_05_2009__14_35

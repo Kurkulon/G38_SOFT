@@ -31,13 +31,13 @@ int main()
 
 	static i32 pwm = 1200;
 
-	static i32 dest = 12;
+	static i32 dest = 1;
 
 	SetDestShaftPos(0);
 
 	while (1)
 	{
-		HW::GPIO->NOT0 = 1<<12;
+//		HW::GPIO->NOT0 = 1<<12;
 
 		UpdateHardware();
 
@@ -49,11 +49,13 @@ int main()
 
 				if (c)
 				{
-					OpenValve(100, 1000, 1000);
+//					OpenValve(10, 1000, 500);
+					SetDestShaftPos(dest);
 				}
 				else
 				{
-					CloseValve(200, 1000, 500);
+//					CloseValve(20, 1000, 500);
+					SetDestShaftPos(-dest);
 				};
 
 				c = !c;
@@ -74,7 +76,7 @@ int main()
 
 			case 2:
 
-				if (tm.Check(1000))
+				if (tm.Check(3000))
 				{
 //					SetDestShaftPos(dest = -dest);
 					i = 0;

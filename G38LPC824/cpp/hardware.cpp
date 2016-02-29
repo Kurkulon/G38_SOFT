@@ -97,7 +97,9 @@ byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, WH, UH, WH, VH, 
 
 i32 destShaftPos = 0;
 
-static float pidOut = 0;
+static i32 pidOut = 0;
+
+static i32 maxOut = 0;
 
 const u16 maxDuty = 200;
 u16 duty = 0, curd = 0;
@@ -232,61 +234,16 @@ inline void LockShaftPos()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static void PID_Update()
-{
-	static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
-	dword t = GetMilliseconds();
-	dword dt = t - pt;
-
-	static float e1 = 0, e2 = 0;
-
-	const float Kp = 32, Ki = 0.0004, Kd = 0.01;
-
-	float e;
-
-	u16 maxOut;
-
-	if (dt > 0)
-	{
-		pt = t;
-
-		e = destShaftPos - GetShaftPos();
-		
-		float kp = Kp;
-		float kdd = Kd * 1000 / dt;
-		float kid = Ki * 1000 / dt;
-
-		pidOut += (kp * (e - e1) + kid * e + kdd * (e - e1 * 2  + e2));
-
-		maxOut = maxDuty / 2;
-		
-		if (pidOut < -maxOut) 
-		{
-			pidOut = -maxOut;
-		}
-		else if (pidOut > maxOut)
-		{
-			pidOut = maxOut;
-		};
-
-		SetDutyPWMDir(-pidOut);
-
-		e2 = e1; e1 = e;
-	};
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static void SetDutyCurrent(u16 cur)
+static u16 SetDutyCurrent(u16 cur)
 {
 	//static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
 	//dword t = GetMilliseconds();
 	//dword dt = t - pt;
 
-	static i32 e1 = 0;
+	static i32 e1 = 0, e2 = 0;
 	static i32 duty = 0;
 
-	const i32 Kp = 1.0 * 65536, Ki = 0.008 * 65536;
+	const i32 Kp = 1.0 * 65536, Ki = 0.02 * 65536, Kd = 10.0 * 65536;
 
 	i32 e;
 
@@ -296,29 +253,84 @@ static void SetDutyCurrent(u16 cur)
 
 		e = (i32)cur - (i32)curADC;
 
-		duty += Kp * (e - e1) + Ki * e;
+		duty += Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2);
 
-		i16 t = duty / 65536;
+		u32 t = maxDuty * 65536;
 
-		if (t < 0) 
+		if (duty < 0) 
 		{
-			t = 0;
+			duty = 0;
 		}
-		else if (t > maxDuty)
+		else if (duty > t)
 		{
-			t = maxDuty;
+			duty = t;
 		};
 
-		SetDutyPWM(t);
+		e2 = e1; e1 = e;
 
-		e1 = e;
+		return duty / 65536;
 	}
 	else
 	{
-		SetDutyPWM(duty = 0);
-		e1 = e = 0;
+		e2 = e1 = e = 0;
+
+		return 0;
 	};
 
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void PID_Update()
+{
+	//static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
+	//dword t = GetMilliseconds();
+	//dword dt = t - pt;
+
+	static i32 e1 = 0, e2 = 0;
+	static i32 dst = 0;
+
+	const i32 Kp = 16.0 * 65536, Ki = 0.05 * 65536, Kd = 10.0 * 65536;
+
+	i32 e;
+
+
+	if (HW::MRT->Channel[3].STAT & 1)
+	{
+		HW::MRT->Channel[3].STAT = 1;
+
+		HW::GPIO->NOT0 = 1<<12;
+
+//		pt = t;
+
+//		if (destShaftPos > dst) { dst += 1; } else if (destShaftPos < dst) { dst -= 1; };
+
+
+		e = destShaftPos - GetShaftPos();
+		
+		//float kp = Kp;
+		//float kdd = Kd * 1000 / dt;
+		//float kid = Ki * 1000 / dt;
+
+		pidOut += (Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2));
+
+//		maxOut = (i32)maxDuty * 65536;
+		maxOut = (i32)SetDutyCurrent(500) * 65536;
+
+	
+		if (pidOut < -maxOut) 
+		{
+			pidOut = -maxOut;
+		}
+		else if (pidOut > maxOut)
+		{
+			pidOut = maxOut;
+		};
+
+		SetDutyPWMDir(pidOut/65536);
+
+		e2 = e1; e1 = e;
+	};
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -369,7 +381,7 @@ static void UpdateMotor()
 	{
 		case 0:		// Idle;
 
-			SetDutyCurrent(0);
+			SetDutyPWM(SetDutyCurrent(0));
 //			PID_Update();
 			break;
 
@@ -393,7 +405,7 @@ static void UpdateMotor()
 			{
 				prevTacho = tacho;
 
-				SetDutyCurrent(limCur);
+				
 
 				//duty = maxDuty;
 
@@ -437,7 +449,7 @@ static void UpdateMotor()
 				//	duty -= curd;
 				//}
 
-				//SetDutyPWM(duty);
+				SetDutyPWM(SetDutyCurrent(limCur));
 			};
 
 			break;
@@ -670,6 +682,8 @@ void InitHardware()
 
 	com.Connect(0, 921600, 0);
 
+	HW::MRT->Channel[3].CTRL = 0;
+	HW::MRT->Channel[3].INTVAL = (MCK/10000)|(1UL<<31);
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -729,7 +743,7 @@ void UpdateHardware()
 	{
 		CALL( UpdateADC() );
 		CALL( TahoSync() );
-		CALL( UpdateMotor() );
+		CALL( PID_Update(); );
 		CALL( UpdateLog() );
 	};
 

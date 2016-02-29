@@ -19,12 +19,6 @@ static byte comState = 0;
 static byte sampleTime[3] = { 19, 19, 9};
 static byte gain[3] = { 7, 7, 7 };
 
-struct LogData
-{
-	u16 cur;
-	u16	ap;
-	i32 shaftPos;
-};
 
 static LogData log1[20];
 static LogData log2[20];
@@ -65,10 +59,33 @@ void UpdateLog()
 	{
 		readyCurLog = false;
 
-		for (u32 i = 0; i < ArraySize(log1); i++)
+		bool c = false;
+
+		u16 cur = p->cur;
+		i32 sh = p->shaftPos;
+
+		for (u32 i = 1; i < ArraySize(log1); i++)
 		{
-			fprintf(logFile, "%u,%hu,%hu,%i\n", tm++, p->cur, p->ap, p->shaftPos);
-			p++;
+			if (p[i].cur != cur || p[i].shaftPos != sh)
+			{
+				c = true;
+				break;
+			};
+		};
+
+		if (c)
+		{
+			DrawWave(ArraySize(log1), curLog);
+
+			for (u32 i = 0; i < ArraySize(log1); i++)
+			{
+				fprintf(logFile, "%u,%hu,%hu,%i\n", tm++, p->cur, p->ap, p->shaftPos);
+				p++;
+			};
+		}
+		else
+		{
+			tm += ArraySize(log1);
 		};
 	};
 }

@@ -30,7 +30,7 @@ struct BMPINF
 } bminfo;
 
 const word winWidth = 1500;
-const word winHeight = 400;
+const word winHeight = 600;
 
 byte screenBuffer[winWidth*winHeight];
 u32 bitsToBytes[256][2];
@@ -322,39 +322,71 @@ void Printf16(word x, word y, word c, const char *format, ... )
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void DrawWave(byte n, void *data)
+void DrawWave(const u16 n, LogData *data)
 {
-	const u32 wh = 100;
+	const u32 wh = 200;
 
 	static HBRUSH fgbr = CreateSolidBrush(RGB(0, 128, 0));
 	static HBRUSH bgbr = CreateSolidBrush(RGB(202, 198, 190));
 	static HBRUSH albr = CreateSolidBrush(RGB(192, 0, 0));
 	static HBRUSH debr = CreateSolidBrush(RGB(192, 188, 180));
 
+	static u16 prCur = 0;
+	static u16 prAp = 0;
+	static i32 prShPos = 0;
+
 	RECT rect;
+	POINT p;
 
-	static float w[500];
+	BitBlt(memdc, 0, 0, winWidth - n, winHeight, memdc, n, 0, SRCCOPY);
 
-	u16 *pw = (u16*)data;
+	rect.top = 0; rect.left =  winWidth - n; rect.bottom = winHeight; rect.right = winWidth;
 
-	for (u32 i = 0; i < ArraySize(w); i++)
-	{
-		w[i] = (pw[i]*100.0/65535 - 50)*3;
-	};
-
-	rect.top = wh*n; rect.left = 0; rect.bottom = wh*(n+1); rect.right = winWidth;
 	FillRect(memdc, &rect, (n&1) ? debr : bgbr);
 
-	MoveToEx(memdc, 0, wh*n+wh/2-w[0], 0);
 
-	for (u32 i = 1; i < ArraySize(w); i++)
+	GetCurrentPositionEx(memdc, &p);
+
+	u16 x = winWidth-n-1;
+
+	MoveToEx(memdc, x++, wh - prCur / 1000.0 * wh, 0);
+
+	for (u32 i = 0; i < n; i++)
 	{
-		LineTo(memdc, i*3, wh*n+wh/2-w[i]);
+		LineTo(memdc, x++, wh - data[i].cur / 1000.0 * wh);
 	};
+
+	prCur = data[n-1].cur;
+
+	//x = winWidth-n-1;
+
+	//MoveToEx(memdc, x++, wh*2 - prAp / 3300.0 * wh, 0);
+
+	//for (u32 i = 0; i < n; i++)
+	//{
+	//	LineTo(memdc, x++, wh*2 - data[i].ap / 3300.0 * wh);
+	//};
+
+	//prAp = data[n-1].ap;
+
+
+	x = winWidth-n-1;
+
+	MoveToEx(memdc, x++, wh*3 - 36 - (((prShPos*1) + 64) & 0x7F), 0);
+
+	for (u32 i = 0; i < n; i++)
+	{
+		LineTo(memdc, x++, wh*3 - 36 - ((((data[i].shaftPos*1) + 64) & 0x7F)));
+	};
+
+	prShPos = data[n-1].shaftPos;
+
+
+
 
 	//rect.left = 0; rect.top = 0; rect.right = width; rect.bottom = height;
 
-	RedrawWindow(hWnd, &rect, 0, RDW_INVALIDATE);
+	RedrawWindow(hWnd, 0, 0, RDW_INVALIDATE);
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
