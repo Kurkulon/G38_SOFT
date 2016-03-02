@@ -381,8 +381,8 @@ static void UpdateMotor()
 	{
 		case 0:		// Idle;
 
-			SetDutyPWM(SetDutyCurrent(0));
-//			PID_Update();
+//			SetDutyPWM(SetDutyCurrent(0));
+			PID_Update();
 			break;
 
 		case 1:
@@ -743,7 +743,7 @@ void UpdateHardware()
 	{
 		CALL( UpdateADC() );
 		CALL( TahoSync() );
-		CALL( PID_Update(); );
+		CALL( UpdateMotor(); );
 		CALL( UpdateLog() );
 	};
 
