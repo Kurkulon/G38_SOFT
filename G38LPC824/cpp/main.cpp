@@ -25,13 +25,13 @@ int main()
 
 //	OpenValve(1000, -1);
 
-	SetDutyPWMDir(230);
+	SetDutyPWMDir(500);
 
 	static byte i = 0;
 
 	static i32 pwm = 1200;
 
-	static i32 dest = 100;
+	static i32 dest =20;
 
 	SetDestShaftPos(0);
 
@@ -76,7 +76,7 @@ int main()
 
 			case 2:
 
-				if (tm.Check(5000))
+				if (tm.Check(1000))
 				{
 //					SetDestShaftPos(dest = -dest);
 					i = 0;

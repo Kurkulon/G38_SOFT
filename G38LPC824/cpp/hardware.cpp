@@ -101,7 +101,7 @@ static i32 pidOut = 0;
 
 static i32 maxOut = 0;
 
-const u16 maxDuty = 200;
+const u16 maxDuty = 470;
 u16 duty = 0, curd = 0;
 
 
@@ -290,7 +290,7 @@ static void PID_Update()
 	static i32 e1 = 0, e2 = 0;
 	static i32 dst = 0;
 
-	const i32 Kp = 16.0 * 65536, Ki = 0.05 * 65536, Kd = 10.0 * 65536;
+	const i32 Kp = 40.0 * 65536, Ki = 0.1 * 65536, Kd = 10.0 * 65536;
 
 	i32 e;
 
@@ -498,8 +498,8 @@ static void InitPWM()
 	SCT->REGMODE_L = 0;
 
 	SCT->MATCHREL_L[0] = maxDuty; 
-	SCT->MATCHREL_L[1] = 230;
-	SCT->MATCHREL_L[2] = 250; 
+	SCT->MATCHREL_L[1] = 480;
+	SCT->MATCHREL_L[2] = 500; 
 	SCT->MATCH_L[3] = 0; 
 	SCT->MATCH_L[4] = 0;
 
@@ -614,7 +614,7 @@ static void TahoSync()
 {
 	static u16 pt = 0;
 
-	if (GetMillisecondsLow() != pt)
+	if ((u16)(GetMillisecondsLow() - pt) >= 1)
 	{
 		pt = GetMillisecondsLow();
 
