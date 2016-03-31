@@ -23,12 +23,15 @@ extern void SetDutyPWMDir(i32 v);
 
 extern void SetDutyPWM(u16 v);
 
+extern void OpenValve();
+extern void CloseValve();
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 inline bool IsMotorIdle()
 {
 	extern byte motorState;
-	return motorState == 0;
+	return motorState == 0 || motorState == 2 || motorState == 4;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -54,6 +57,22 @@ inline void CloseValve(u32 tacho, u32 time, u16 lim)
 };
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline bool CalibrateShaftPos()
+{
+	extern byte motorState;
+
+	if (IsMotorIdle())
+	{
+		motorState = 5;
+		return true;
+	};
+
+	return false;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 #ifndef WIN32
 

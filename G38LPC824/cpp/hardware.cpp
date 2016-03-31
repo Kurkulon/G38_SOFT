@@ -15,6 +15,12 @@ u32 fvAP = 0;
 u32 tachoCount = 0;
 i32 shaftPos = 0;
 
+static i32 closeShaftPos = 0;
+static i32 openShaftPos = 0;
+static i32 deltaShaftPos = 0;
+static i32 maxCloseShaftPos = 0;
+static i32 maxOpenShaftPos = 0;
+
 byte motorState = 0;
 static u32 reqTacho = 0;
 static u32 reqTime = 0;
@@ -373,96 +379,311 @@ void StartValve(bool dir, u32 tacho, u32 time, u16 lim)
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+void OpenValve()
+{
+	if (motorState == 0 || motorState == 2)
+	{
+		SetDestShaftPos(openShaftPos);
+
+		motorState = 3;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+void CloseValve()
+{
+	if (motorState == 0 || motorState == 4)
+	{
+		SetDestShaftPos(closeShaftPos);
+
+		motorState = 1;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static void UpdateMotor()
 {
-	u32 tacho, t;
+	//u32 tacho, t;
+	static TM32 tm, tm2, tm3;
+	static i32 prevshaftPos = 0;
+	static u32 t = 500;
 
 	switch (motorState)
 	{
 		case 0:		// Idle;
 
-//			SetDutyPWM(SetDutyCurrent(0));
-			PID_Update();
+			tm.Reset();
+
 			break;
 
-		case 1:
+		case 1: // Закрытие
 
-			t = GetMilliseconds() - startTime;
-			tacho = tachoCount - startTacho;
- 
-			if (t >= reqTime 
-				|| tacho >= reqTacho 
-				|| lockTacho.Check(((tacho - prevTacho) == 0) && (t >= 20)) 
-				/*|| lockCur.Check(((curADC > (limCur+minCur)) || (curADC > maxCur)) && (t >= 50))*/)
+			if (tm.Check(100))
 			{
-				SetDutyPWM(0);
-				motorState = 2;
-				stopTime = GetMilliseconds();
-				stopTacho.Check(false);
-				prevTacho = tachoCount;
-			}
-			else
-			{
-				prevTacho = tacho;
+				maxCloseShaftPos = shaftPos;
+				closeShaftPos = maxCloseShaftPos+3;
+			};
 
+			if (shaftPos <= closeShaftPos)
+			{
+				SetDestShaftPos(closeShaftPos--);
+
+				openShaftPos = closeShaftPos + deltaShaftPos;
 				
+				tm2.Reset();
+				t = 500;
 
-				//duty = maxDuty;
+				motorState++;
+			}
+			else if ((shaftPos != prevshaftPos) || (curADC < 400))
+			{
+				prevshaftPos = shaftPos;
 
-				//if (t <= 10)
-				//{ 
-				//	duty = t * maxDuty / 10; 
-				//}
-				//else if ((t >= 60) && (t < 100))
-				//{
-				//	duty = maxDuty;// - (t - 60) * maxDuty / 80; 
-				//};
-
-				//if (curADC > limCur)
-				//{
-				//	t = (curADC - limCur) >> 4;
-
-				//	duty -= (t < duty) ? t : duty;
-				//};
-
-				//if (t < 20)
-				//{
-				//	if (curADC > maxCur)
-				//	{
-				//		maxCur = curADC;
-				//	};
-				//}
-				//else
-				//{
-				//	if (curADC < minCur)
-				//	{
-				//		minCur = curADC;
-				//	};
-				//};
-
-				//if (curADC > 200)
-				//{
-				//	curd = (curADC-200) * 1;
-
-				//	if (curd > duty) curd = duty;
-
-				//	duty -= curd;
-				//}
-
-				SetDutyPWM(SetDutyCurrent(limCur));
+				tm.Reset();
 			};
 
 			break;
 
-		case 2:
+		case 2: // Закрыт
 
-			LockShaftPos();
-			motorState = 0;
+			if (tm2.Check(t))
+			{
+				t = 50;
+
+				if (curADC > 50) 
+				{
+					SetDestShaftPos(closeShaftPos++);
+					openShaftPos = closeShaftPos + deltaShaftPos;
+				};
+			};
+			//else if (tm3.Check(500))
+			//{
+			//	SetDestShaftPos(closeShaftPos--);
+			//};
+
+			tm.Reset();
+
+			break;
+
+		case 3: // Открытие
+
+			if (tm.Check(100))
+			{
+				maxOpenShaftPos = shaftPos;
+				openShaftPos = maxOpenShaftPos - 10;
+			};
+
+			if (shaftPos >= openShaftPos)
+			{
+				SetDestShaftPos(openShaftPos);
+
+				closeShaftPos = openShaftPos - deltaShaftPos;
+
+				t = 500;
+
+				motorState++;
+			}
+			else if ((shaftPos != prevshaftPos) || (curADC < 400))
+			{
+				prevshaftPos = shaftPos;
+
+				tm.Reset();
+			};
+
+			break;
+
+		case 4: // Открыт
+
+			if (tm2.Check(t))
+			{
+				t = 50;
+
+				if (curADC > 50) 
+				{
+					SetDestShaftPos(openShaftPos--);
+					closeShaftPos = openShaftPos - deltaShaftPos;
+				};
+			};
+
+			tm.Reset();
+
+			break;
+
+		case 5:
+
+			maxOpenShaftPos = maxCloseShaftPos = shaftPos;
+
+			SetDestShaftPos(shaftPos-1000);
+
+			tm.Reset();
+
+			motorState++;
+
+			break;
+
+		case 6:
+
+			if (tm.Check(100))
+			{
+				closeShaftPos = maxCloseShaftPos+15;
+
+				SetDestShaftPos(shaftPos+1000);
+
+				motorState++;
+			}
+			else if (shaftPos < maxCloseShaftPos)
+			{
+				maxCloseShaftPos = shaftPos;
+	
+				tm.Reset();
+			}
+			else if (curADC < 400)
+			{
+				tm.Reset();
+			};
+
+			break;
+
+		case 7:
+
+			if (tm.Check(100))
+			{
+				openShaftPos = maxOpenShaftPos - 10;
+				
+				deltaShaftPos = openShaftPos - closeShaftPos;
+
+				//maxOpenShaftPos - 10;
+
+				SetDestShaftPos(closeShaftPos);
+
+				motorState = 1;
+			}
+			else if (shaftPos > maxOpenShaftPos)
+			{
+				maxOpenShaftPos = shaftPos;
+	
+				tm.Reset();
+			}
+			else if (curADC < 400)
+			{
+				tm.Reset();
+			};
+
+			break;
+
+		case 8:
+
+			if (tm.Check(100))
+			{
+				SetDestShaftPos(maxOpenShaftPos - 1);
+
+				motorState = 0;
+			}
+			else if (shaftPos > closeShaftPos)
+			{
+				maxOpenShaftPos = shaftPos;
+	
+				tm.Reset();
+			};
 
 			break;
 	};
 }
 
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//static void UpdateMotor()
+//{
+//	u32 tacho, t;
+//
+//	switch (motorState)
+//	{
+//		case 0:		// Idle;
+//
+////			SetDutyPWM(SetDutyCurrent(0));
+////			PID_Update();
+//			break;
+//
+//		case 1:
+//
+//			t = GetMilliseconds() - startTime;
+//			tacho = tachoCount - startTacho;
+// 
+//			if (t >= reqTime 
+//				|| tacho >= reqTacho 
+//				|| lockTacho.Check(((tacho - prevTacho) == 0) && (t >= 20)) 
+//				/*|| lockCur.Check(((curADC > (limCur+minCur)) || (curADC > maxCur)) && (t >= 50))*/)
+//			{
+//				SetDutyPWM(0);
+//				motorState = 2;
+//				stopTime = GetMilliseconds();
+//				stopTacho.Check(false);
+//				prevTacho = tachoCount;
+//			}
+//			else
+//			{
+//				prevTacho = tacho;
+//
+//				
+//
+//				//duty = maxDuty;
+//
+//				//if (t <= 10)
+//				//{ 
+//				//	duty = t * maxDuty / 10; 
+//				//}
+//				//else if ((t >= 60) && (t < 100))
+//				//{
+//				//	duty = maxDuty;// - (t - 60) * maxDuty / 80; 
+//				//};
+//
+//				//if (curADC > limCur)
+//				//{
+//				//	t = (curADC - limCur) >> 4;
+//
+//				//	duty -= (t < duty) ? t : duty;
+//				//};
+//
+//				//if (t < 20)
+//				//{
+//				//	if (curADC > maxCur)
+//				//	{
+//				//		maxCur = curADC;
+//				//	};
+//				//}
+//				//else
+//				//{
+//				//	if (curADC < minCur)
+//				//	{
+//				//		minCur = curADC;
+//				//	};
+//				//};
+//
+//				//if (curADC > 200)
+//				//{
+//				//	curd = (curADC-200) * 1;
+//
+//				//	if (curd > duty) curd = duty;
+//
+//				//	duty -= curd;
+//				//}
+//
+//				SetDutyPWM(SetDutyCurrent(limCur));
+//			};
+//
+//			break;
+//
+//		case 2:
+//
+//			LockShaftPos();
+//			motorState = 0;
+//
+//			break;
+//	};
+//}
+//
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void UpdateADC()
@@ -741,10 +962,11 @@ void UpdateHardware()
 	enum C { S = (__LINE__+3) };
 	switch(i++)
 	{
-		CALL( UpdateADC() );
-		CALL( TahoSync() );
-		CALL( UpdateMotor(); );
-		CALL( UpdateLog() );
+		CALL( UpdateADC()	);
+		CALL( TahoSync()	);
+		CALL( PID_Update()	);
+		CALL( UpdateMotor() );
+		CALL( UpdateLog()	);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;

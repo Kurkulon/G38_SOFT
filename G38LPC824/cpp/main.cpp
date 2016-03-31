@@ -33,7 +33,7 @@ int main()
 
 	static i32 dest =20;
 
-	SetDestShaftPos(0);
+	CalibrateShaftPos();
 
 	while (1)
 	{
@@ -47,20 +47,21 @@ int main()
 		{
 			case 0: 
 
-				if (c)
+				if (IsMotorIdle())
 				{
-					//OpenValve(5000, 3000, 200);
-					SetDestShaftPos(dest);
-				}
-				else
-				{
-					//CloseValve(5000, 3000, 200);
-					SetDestShaftPos(-dest);
+					if (c)
+					{
+						OpenValve();
+					}
+					else
+					{
+						CloseValve();
+					};
+
+					c = !c;
+
+					i++;
 				};
-
-				c = !c;
-
-				i++;
 
 				break;
 
@@ -76,7 +77,7 @@ int main()
 
 			case 2:
 
-				if (tm.Check(1000))
+				if (tm.Check(2000))
 				{
 //					SetDestShaftPos(dest = -dest);
 					i = 0;

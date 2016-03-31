@@ -52,6 +52,13 @@ void InitLogFile()
 void UpdateLog()
 {
 	static u32 tm = 0;
+	static u32 prevt = 0;
+	static TM32 t;
+	static u16 prevCur = 0;
+	static i32 prevSh = 0;
+	static u16 cur_1 = 0;
+	static i32 sh_1 = 0;
+	static u16 ap_1 = 0;
 
 	LogData *p = curLog;
 
@@ -59,34 +66,43 @@ void UpdateLog()
 	{
 		readyCurLog = false;
 
-		bool c = false;
+//		bool c = false;
 
 		u16 cur = p->cur;
 		i32 sh = p->shaftPos;
 
 		for (u32 i = 1; i < ArraySize(log1); i++)
 		{
-			if (p[i].cur != cur || p[i].shaftPos != sh)
+			if (p[i].cur < (cur-2) || p[i].cur > (cur+2) || p[i].shaftPos < (sh-2) || p[i].shaftPos > (sh+2))
 			{
-				c = true;
+				DrawWave(ArraySize(log1), curLog);
 				break;
 			};
 		};
 
-		if (c)
+		for (u32 i = 0; i < ArraySize(log1); i++)
 		{
-			DrawWave(ArraySize(log1), curLog);
-
-			for (u32 i = 0; i < ArraySize(log1); i++)
+			if (p->cur < (prevCur-2) || p->cur > (prevCur+2) || p->shaftPos < (prevSh-2) || p->shaftPos > (prevSh+2))
 			{
-				fprintf(logFile, "%u,%hu,%hu,%i\n", tm++, p->cur, p->ap, p->shaftPos);
-				p++;
+				if ((tm - prevt) > 1)
+				{
+					fprintf(logFile, "%u,%hu,%hu,%i\n", tm-1, cur_1, ap_1, sh_1);
+				};
+
+				fprintf(logFile, "%u,%hu,%hu,%i\n", tm, p->cur, p->ap, p->shaftPos);
+
+				prevt = tm; prevCur = p->cur; prevSh = p->shaftPos;
 			};
-		}
-		else
-		{
-			tm += ArraySize(log1);
+			
+			cur_1 = p->cur; sh_1 = p->shaftPos; ap_1 = p->ap;
+
+			tm++;
+			p++;
 		};
+	}
+	else if (t.Check(1000))
+	{
+		fflush(logFile);
 	};
 }
 

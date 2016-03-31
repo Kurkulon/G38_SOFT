@@ -117,7 +117,6 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>DLGUARM</Key>
-          <Name></Name>
         </SetRegEntry>
         <SetRegEntry>
           <Number>0</Number>
@@ -145,7 +144,24 @@
           <Name>UL2CM3(-S0 -C0 -P0 -FD10000000 -FCFE0 -FN1 -FF0LPC8xx_32 -FS00 -FL08000 -FP0($$Device:LPC824M201JHI33$Flash\LPC8xx_32.FLM))</Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
-      <Breakpoint/>
+      <Breakpoint>
+        <Bp>
+          <Number>0</Number>
+          <Type>0</Type>
+          <LineNumber>409</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>1498</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>d:\Work\G38_SOFT\G38LPC824\cpp\hardware.cpp</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\G38LPC824\cpp/hardware.cpp\409</Expression>
+        </Bp>
+      </Breakpoint>
       <WatchWindow1>
         <Ww>
           <count>0</count>
@@ -157,47 +173,37 @@
           <WinNumber>1</WinNumber>
           <ItemText>shaftPos,0x0A</ItemText>
         </Ww>
-        <Ww>
-          <count>2</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>pidOut</ItemText>
-        </Ww>
-        <Ww>
-          <count>3</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>maxOut</ItemText>
-        </Ww>
       </WatchWindow1>
       <WatchWindow2>
         <Ww>
           <count>0</count>
           <WinNumber>2</WinNumber>
-          <ItemText>pidOut,0x0A</ItemText>
+          <ItemText>pidOut</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>2</WinNumber>
-          <ItemText>maxOut,0x0A</ItemText>
+          <ItemText>maxOut</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>2</WinNumber>
-          <ItemText>pidOut</ItemText>
+          <ItemText>pidOut,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>2</WinNumber>
-          <ItemText>maxOut</ItemText>
+          <ItemText>maxOut,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>2</WinNumber>
-          <ItemText>maxOut</ItemText>
+          <ItemText>pidOut</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
           <WinNumber>2</WinNumber>
-          <ItemText>pidOut</ItemText>
+          <ItemText>maxOut</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
@@ -222,7 +228,7 @@
         <Ww>
           <count>10</count>
           <WinNumber>2</WinNumber>
-          <ItemText>pidOut</ItemText>
+          <ItemText>maxOut</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
@@ -232,37 +238,37 @@
         <Ww>
           <count>12</count>
           <WinNumber>2</WinNumber>
-          <ItemText>e,0x0A</ItemText>
+          <ItemText>pidOut</ItemText>
         </Ww>
         <Ww>
           <count>13</count>
           <WinNumber>2</WinNumber>
-          <ItemText>tm.pt</ItemText>
+          <ItemText>pidOut</ItemText>
         </Ww>
         <Ww>
           <count>14</count>
           <WinNumber>2</WinNumber>
-          <ItemText>motorState</ItemText>
+          <ItemText>e,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>15</count>
           <WinNumber>2</WinNumber>
-          <ItemText>tahoCount,0x0A</ItemText>
+          <ItemText>tm.pt</ItemText>
         </Ww>
         <Ww>
           <count>16</count>
           <WinNumber>2</WinNumber>
-          <ItemText>pidOut</ItemText>
+          <ItemText>motorState</ItemText>
         </Ww>
         <Ww>
           <count>17</count>
           <WinNumber>2</WinNumber>
-          <ItemText>pidOut</ItemText>
+          <ItemText>tahoCount,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>18</count>
           <WinNumber>2</WinNumber>
-          <ItemText>maxOut</ItemText>
+          <ItemText>pidOut</ItemText>
         </Ww>
         <Ww>
           <count>19</count>
@@ -271,6 +277,16 @@
         </Ww>
         <Ww>
           <count>20</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>maxOut</ItemText>
+        </Ww>
+        <Ww>
+          <count>21</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>pidOut</ItemText>
+        </Ww>
+        <Ww>
+          <count>22</count>
           <WinNumber>2</WinNumber>
           <ItemText>maxOut</ItemText>
         </Ww>
