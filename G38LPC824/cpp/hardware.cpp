@@ -62,6 +62,13 @@ static ComPort com;
 #define UH 17
 #define VH 18
 #define WH 19
+#define NN 0xFF
+
+#define UU 0x37
+#define VV 0x2F
+#define WW 0x1F
+#define NC 0x3F
+
 
 // D	HHH	WVUWVU  
 // R	WVU	LLLHHH 
@@ -84,9 +91,6 @@ static ComPort com;
 // 0	110	P10P11  2
 // 0	111	111111  
 
-byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,		0x3F, 0x37, 0x2F, 0x2F, 0x1F, 0x37, 0x1F, 0x3F };
-
-//byte states[16] = {0x3F, 0x1F, 0x37, 0x1F, 0x2F, 0x2F, 0x37, 0x3F,			0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x37, 0x3F, 0x3F };
 
 
 byte t = 0;
@@ -94,11 +98,32 @@ byte s = 0;
 
 bool dir = true;
 
-byte LG_pin[16] =		{ 0xFF, UL, VL, VL, WL, UL, WL, 0XFF,		0xFF, WL, UL, WL, VL, VL, UL, 0xFF };
-byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, WH, UH, WH, VH, VH, UH, 0xFF };
+// dir 0
+// 1 UH WW
+// 3 VH WW
+// 2 VH UU
+// 6 WH UU
+// 4 WH VV
+// 5 UH VV
 
-//byte LG_pin[16] =		{ 0xFF, UL, VL, VL, WL, UL, WL, 0XFF,		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, VL, 0xFF, 0xFF };
-//byte HG_pin[16] =		{ 0xFF, UH, VH, VH, WH, UH, WH, 0xFF,		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, VH, 0xFF, 0xFF };
+// dir 1
+// 1 WH UU
+// 3 WH VV
+// 2 UH VV
+// 6 UH WW
+// 4 VH WW
+// 5 VH UU
+
+// F/R 1
+
+
+//                             1   2   3   4   5   6                1   2   3   4   5   6
+byte states[16] =		{ NC, WW, UU, WW, VV, VV, UU, NC,		NC, UU, VV, VV, WW, UU, WW, NC };
+byte LG_pin[16] =		{ NN, UL, VL, VL, WL, UL, WL, NN,		NN, WL, UL, WL, VL, VL, UL, NN };
+byte HG_pin[16] =		{ NN, UH, VH, VH, WH, UH, WH, NN,		NN, WH, UH, WH, VH, VH, UH, NN };
+//byte states[16] =		{ NC, WW, UU, NC, VV, NC, NC, NC,		NC, NC, NC, NC, NC, NC, NC, NC };
+//byte LG_pin[16] =		{ NN, UL, VL, NN, WL, NN, NN, NN,		NN, NN, NN, NN, NN, NN, NN, NN };
+//byte HG_pin[16] =		{ NN, UH, VH, NN, WH, NN, NN, NN,		NN, NN, NN, NN, NN, NN, NN, NN };
 
 
 i32 destShaftPos = 0;
@@ -759,6 +784,8 @@ static void InitPWM()
 	//SWM->CTOUT_1 = 17;
 
 	SCT->CTRL_L = (1<<3);
+
+	SetDutyPWM(0);
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -966,7 +993,7 @@ void UpdateHardware()
 		CALL( TahoSync()	);
 		CALL( PID_Update()	);
 		CALL( UpdateMotor() );
-		CALL( UpdateLog()	);
+//		CALL( UpdateLog()	);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;

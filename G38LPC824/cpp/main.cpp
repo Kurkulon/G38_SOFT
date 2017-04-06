@@ -20,18 +20,19 @@ int main()
 	TM32 tm;
 	Dbt db(100);
 
-	InitHardware();
+//	__breakpoint(0);
 
+	InitHardware();
 
 //	OpenValve(1000, -1);
 
-	SetDutyPWMDir(500);
+	SetDutyPWMDir(100);
 
 	static byte i = 0;
 
 	static i32 pwm = 1200;
 
-	static i32 dest =20;
+	static i32 dest =200;
 
 	CalibrateShaftPos();
 
@@ -42,6 +43,11 @@ int main()
 		UpdateHardware();
 
 //		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
+
+		//if (tm.Check(200))
+		//{
+		//	SetDutyPWMDir(dest = -dest);
+		//};
 
 		switch (i)
 		{
