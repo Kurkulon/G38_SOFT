@@ -382,25 +382,25 @@ static void PID_Update()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void StartValve(bool dir, u32 tacho, u32 time, u16 lim)
-{
-	startTime = GetMilliseconds();
-	startTacho = tachoCount;
-	reqTime = time;
-	reqTacho = tacho;
-	motorState = 1;
-	lockCur.Check(false);
-	lockTacho.Check(false);
-	limCur = lim;
-	maxCur = 0;
-	minCur = 30000;
-
-	::dir = dir;
-
-//	SetDutyPWM(3000);
-
-//	StartMotor();
-}
+//void StartValve(bool dir, u32 tacho, u32 time, u16 lim)
+//{
+//	startTime = GetMilliseconds();
+//	startTacho = tachoCount;
+//	reqTime = time;
+//	reqTacho = tacho;
+//	motorState = 1;
+//	lockCur.Check(false);
+//	lockTacho.Check(false);
+//	limCur = lim;
+//	maxCur = 0;
+//	minCur = 30000;
+//
+//	::dir = dir;
+//
+////	SetDutyPWM(3000);
+//
+////	StartMotor();
+//}
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -439,19 +439,21 @@ static void UpdateMotor()
 	{
 		case 0:		// Idle;
 
+			prevshaftPos = shaftPos;
+
 			tm.Reset();
 
 			break;
 
 		case 1: // Закрытие
 
-			if (tm.Check(100))
-			{
-				maxCloseShaftPos = shaftPos;
-				closeShaftPos = maxCloseShaftPos+3;
-			};
+			//if (tm.Check(200))
+			//{
+			//	maxCloseShaftPos = shaftPos;
+			//	closeShaftPos = maxCloseShaftPos+3;
+			//};
 
-			if (shaftPos <= closeShaftPos)
+			if (shaftPos <= closeShaftPos || tm.Check(100))
 			{
 				SetDestShaftPos(closeShaftPos--);
 
@@ -462,7 +464,7 @@ static void UpdateMotor()
 
 				motorState++;
 			}
-			else if ((shaftPos != prevshaftPos) || (curADC < 400))
+			else if ((prevshaftPos - shaftPos) > 2/* || (curADC < 400)*/)
 			{
 				prevshaftPos = shaftPos;
 
@@ -488,29 +490,31 @@ static void UpdateMotor()
 			//	SetDestShaftPos(closeShaftPos--);
 			//};
 
+			prevshaftPos = shaftPos;
+
 			tm.Reset();
 
 			break;
 
 		case 3: // Открытие
 
-			if (tm.Check(100))
-			{
-				maxOpenShaftPos = shaftPos;
-				openShaftPos = maxOpenShaftPos - 10;
-			};
+			//if (tm.Check(200))
+			//{
+			//	maxOpenShaftPos = shaftPos;
+			//	openShaftPos = maxOpenShaftPos - 10;
+			//};
 
-			if (shaftPos >= openShaftPos)
+			if (shaftPos >= openShaftPos || tm.Check(100))
 			{
 				SetDestShaftPos(openShaftPos);
 
-				closeShaftPos = openShaftPos - deltaShaftPos;
+//				closeShaftPos = openShaftPos - deltaShaftPos;
 
 				t = 500;
 
 				motorState++;
 			}
-			else if ((shaftPos != prevshaftPos) || (curADC < 400))
+			else if ((shaftPos - prevshaftPos) > 2/* || (curADC < 400)*/)
 			{
 				prevshaftPos = shaftPos;
 
@@ -532,6 +536,8 @@ static void UpdateMotor()
 				};
 			};
 
+			prevshaftPos = shaftPos;
+
 			tm.Reset();
 
 			break;
@@ -540,7 +546,7 @@ static void UpdateMotor()
 
 			maxOpenShaftPos = maxCloseShaftPos = shaftPos;
 
-			SetDestShaftPos(shaftPos-1000);
+			SetDestShaftPos(shaftPos-2000);
 
 			tm.Reset();
 
@@ -550,11 +556,11 @@ static void UpdateMotor()
 
 		case 6:
 
-			if (tm.Check(100))
+			if (tm.Check(200))
 			{
 				closeShaftPos = maxCloseShaftPos+15;
 
-				SetDestShaftPos(shaftPos+1000);
+				SetDestShaftPos(shaftPos+2000);
 
 				motorState++;
 			}
@@ -564,8 +570,9 @@ static void UpdateMotor()
 	
 				tm.Reset();
 			}
-			else if (curADC < 400)
+			else if ((prevshaftPos - shaftPos) > 2)
 			{
+				prevshaftPos = shaftPos;
 				tm.Reset();
 			};
 
@@ -573,11 +580,15 @@ static void UpdateMotor()
 
 		case 7:
 
-			if (tm.Check(100))
+			if (tm.Check(200))
 			{
 				openShaftPos = maxOpenShaftPos - 10;
 				
 				deltaShaftPos = openShaftPos - closeShaftPos;
+
+				//if (deltaShaftPos > 100 ) { deltaShaftPos = 100; };
+
+				//openShaftPos = closeShaftPos + deltaShaftPos;
 
 				//maxOpenShaftPos - 10;
 
@@ -591,8 +602,9 @@ static void UpdateMotor()
 	
 				tm.Reset();
 			}
-			else if (curADC < 400)
+			else if ((shaftPos - prevshaftPos) > 2)
 			{
+				prevshaftPos = shaftPos;
 				tm.Reset();
 			};
 
@@ -600,7 +612,7 @@ static void UpdateMotor()
 
 		case 8:
 
-			if (tm.Check(100))
+			if (tm.Check(200))
 			{
 				SetDestShaftPos(maxOpenShaftPos - 1);
 
@@ -851,7 +863,7 @@ static __irq void TahoHandler()
 	HW::SWM->CTOUT_0 = LG_pin[t];
 	HW::SWM->CTOUT_1 = HG_pin[t];
 
-	shaftPos += tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
+	shaftPos -= tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
 
 	HW::PIN_INT->IST = 7;
 }

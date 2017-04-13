@@ -30,9 +30,9 @@ int main()
 
 	static byte i = 0;
 
-	static i32 pwm = 1200;
+	static i32 pwm = 75;
 
-	static i32 dest =200;
+	static i32 dest =20;
 
 	CalibrateShaftPos();
 
@@ -44,10 +44,11 @@ int main()
 
 //		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
 
-		//if (tm.Check(200))
-		//{
-		//	SetDutyPWMDir(dest = -dest);
-		//};
+//		if (tm.Check(2000))
+//		{
+//			SetDutyPWMDir(pwm = -pwm);
+////			SetDestShaftPos(dest = -dest);
+//		};
 
 		switch (i)
 		{
@@ -83,9 +84,9 @@ int main()
 
 			case 2:
 
-				if (tm.Check(2000))
+				if (tm.Check(1000))
 				{
-//					SetDestShaftPos(dest = -dest);
+//					SetDutyPWMDir(pwm = -pwm);
 					i = 0;
 				};
 

@@ -11,7 +11,7 @@
 extern void InitHardware();
 extern void UpdateHardware();
 extern u16 GetCRC(const void *data, u32 len);
-extern void StartValve(bool dir, u32 tacho, u32 time, u16 lim);
+//extern void StartValve(bool dir, u32 tacho, u32 time, u16 lim);
 
 inline i32 GetShaftPos() { extern i32 shaftPos; return shaftPos; }
 
@@ -44,17 +44,17 @@ inline u32 GetMotorStopTime()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-inline void OpenValve(u32 tacho, u32 time, u16 lim)
-{
-	StartValve(true, tacho, time, lim);
-};
+//inline void OpenValve(u32 tacho, u32 time, u16 lim)
+//{
+//	StartValve(true, tacho, time, lim);
+//};
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-inline void CloseValve(u32 tacho, u32 time, u16 lim)
-{
-	StartValve(false, tacho, time, lim);
-};
+//inline void CloseValve(u32 tacho, u32 time, u16 lim)
+//{
+//	StartValve(false, tacho, time, lim);
+//};
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
