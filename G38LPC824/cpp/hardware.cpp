@@ -447,13 +447,13 @@ static void UpdateMotor()
 
 		case 1: // Закрытие
 
-			//if (tm.Check(200))
-			//{
-			//	maxCloseShaftPos = shaftPos;
-			//	closeShaftPos = maxCloseShaftPos+3;
-			//};
+			if (tm.Check(100))
+			{
+				maxCloseShaftPos = shaftPos;
+				closeShaftPos = maxCloseShaftPos+3;
+			};
 
-			if (shaftPos <= closeShaftPos || tm.Check(100))
+			if (shaftPos <= closeShaftPos/* || tm.Check(100)*/)
 			{
 				SetDestShaftPos(closeShaftPos--);
 
@@ -498,13 +498,13 @@ static void UpdateMotor()
 
 		case 3: // Открытие
 
-			//if (tm.Check(200))
-			//{
-			//	maxOpenShaftPos = shaftPos;
-			//	openShaftPos = maxOpenShaftPos - 10;
-			//};
+			if (tm.Check(100))
+			{
+				maxOpenShaftPos = shaftPos;
+				openShaftPos = maxOpenShaftPos - 10;
+			};
 
-			if (shaftPos >= openShaftPos || tm.Check(100))
+			if (shaftPos >= openShaftPos/* || tm.Check(100)*/)
 			{
 				SetDestShaftPos(openShaftPos);
 
@@ -586,9 +586,9 @@ static void UpdateMotor()
 				
 				deltaShaftPos = openShaftPos - closeShaftPos;
 
-				//if (deltaShaftPos > 100 ) { deltaShaftPos = 100; };
+				if (deltaShaftPos > 50 ) { deltaShaftPos = 50; };
 
-				//openShaftPos = closeShaftPos + deltaShaftPos;
+				openShaftPos = closeShaftPos + deltaShaftPos;
 
 				//maxOpenShaftPos - 10;
 
@@ -813,11 +813,11 @@ void SetDutyPWMDir(i32 v)
 {
 	if (v < 0)
 	{
-		v = -v; dir = false;
+		v = -v; dir = true;
 	}
 	else
 	{
-		dir = true;
+		dir = false;
 	};
 
 	HW::SCT->MATCHREL_L[0] = (v < maxDuty) ? v : maxDuty;
@@ -863,7 +863,7 @@ static __irq void TahoHandler()
 	HW::SWM->CTOUT_0 = LG_pin[t];
 	HW::SWM->CTOUT_1 = HG_pin[t];
 
-	shaftPos -= tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
+	shaftPos += tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
 
 	HW::PIN_INT->IST = 7;
 }
@@ -1003,8 +1003,8 @@ void UpdateHardware()
 	{
 		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
-		CALL( PID_Update()	);
-		CALL( UpdateMotor() );
+//		CALL( PID_Update()	);
+//		CALL( UpdateMotor() );
 //		CALL( UpdateLog()	);
 	};
 
