@@ -8,6 +8,8 @@
 #include <windows.h>
 #endif
 
+struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[100]; };
+
 extern void InitHardware();
 extern void UpdateHardware();
 extern u16 GetCRC(const void *data, u32 len);
@@ -25,6 +27,7 @@ extern void SetDutyPWM(u16 v);
 
 extern void OpenValve();
 extern void CloseValve();
+extern Rsp30* GetRsp30();
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -40,6 +43,22 @@ inline u32 GetMotorStopTime()
 {
 	extern u32 stopTime;
 	return stopTime;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline u16 GetAP()
+{
+	extern u16 vAP;
+	return vAP;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline u16 GetCurrent()
+{
+	extern u16 curADC;
+	return curADC;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

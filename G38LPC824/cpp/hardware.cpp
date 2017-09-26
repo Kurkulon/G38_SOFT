@@ -22,21 +22,28 @@ static i32 maxCloseShaftPos = 0;
 static i32 maxOpenShaftPos = 0;
 
 byte motorState = 0;
-static u32 reqTacho = 0;
-static u32 reqTime = 0;
-static u16 limCur = 500;
-static u16 maxCur = 0;
-static u16 minCur = 0;
+//static u32 reqTacho = 0;
+//static u32 reqTime = 0;
+//static u16 limCur = 500;
+//static u16 maxCur = 0;
+//static u16 minCur = 0;
 //static u16 holdCur = 0;
-static u32 startTacho = 0;
-u32 startTime = 0;
-u32 stopTime = 0;
-static u32 prevTacho = 0;
+//static u32 startTacho = 0;
+//u32 startTime = 0;
+//u32 stopTime = 0;
+//static u32 prevTacho = 0;
 //static u32 brakeTime = 160;
-static Dbt lockTacho(1000);
-static Dbt lockCur(5);
+//static Dbt lockTacho(1000);
+//static Dbt lockCur(5);
 //static Dbt maxCur(10);
-static Dbt stopTacho(160);
+//static Dbt stopTacho(160);
+
+
+Rsp30 buf_rsp30[4] = {0};
+
+static byte wrInd_rsp30 = 0;
+static byte rdInd_rsp30 = 0;
+
 
 struct LogData
 {
@@ -45,13 +52,15 @@ struct LogData
 	i32 shaftPos;
 };
 
-static LogData log1[20];
-static LogData log2[20];
+//static LogData log1[20];
+//static LogData log2[20];
 
-static LogData *curLog = log1;
-static LogData *txLog = log2;
+//static LogData *curLog = log1;
+//static LogData *txLog = log2;
 
-static ComPort com;
+// static ComPort com;
+
+static void InitRsp30();
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -319,7 +328,7 @@ static void PID_Update()
 	//dword dt = t - pt;
 
 	static i32 e1 = 0, e2 = 0;
-	static i32 dst = 0;
+//	static i32 dst = 0;
 
 	const i32 Kp = 40.0 * 65536, Ki = 0.1 * 65536, Kd = 10.0 * 65536;
 
@@ -556,13 +565,23 @@ static void UpdateMotor()
 
 		case 6:
 
-			if (tm.Check(200))
+			if (tm.Check(500))
 			{
 				closeShaftPos = maxCloseShaftPos+15;
 
-				SetDestShaftPos(shaftPos+2000);
+				openShaftPos = closeShaftPos + 30;
 
-				motorState++;
+				maxOpenShaftPos = openShaftPos + 10;
+
+				deltaShaftPos = openShaftPos - closeShaftPos;
+							
+				SetDestShaftPos(closeShaftPos);
+
+				motorState = 1;
+
+//				SetDestShaftPos(shaftPos+60);
+
+//				motorState++;
 			}
 			else if (shaftPos < maxCloseShaftPos)
 			{
@@ -580,7 +599,7 @@ static void UpdateMotor()
 
 		case 7:
 
-			if (tm.Check(200))
+			if (tm.Check(100))
 			{
 				openShaftPos = maxOpenShaftPos - 10;
 				
@@ -813,11 +832,11 @@ void SetDutyPWMDir(i32 v)
 {
 	if (v < 0)
 	{
-		v = -v; dir = true;
+		v = -v; dir = false;
 	}
 	else
 	{
-		dir = false;
+		dir = true;
 	};
 
 	HW::SCT->MATCHREL_L[0] = (v < maxDuty) ? v : maxDuty;
@@ -891,6 +910,8 @@ static void TahoSync()
 		HW::SWM->CTOUT_1 = HG_pin[t];
 
 		__enable_irq();
+
+		HW::ResetWDT();
 	};
 }
 
@@ -933,22 +954,109 @@ static void InitTaho()
 
 void InitHardware()
 {
+	using namespace HW;
+
 	InitVectorTable();
 	Init_time();
 	InitADC();
 	InitPWM();
 	InitTaho();
+	InitRsp30();
 //	StopMotor();
 
-	com.Connect(0, 921600, 0);
+//	com.Connect(0, 921600, 0);
 
 	HW::MRT->Channel[3].CTRL = 0;
 	HW::MRT->Channel[3].INTVAL = (MCK/10000)|(1UL<<31);
+
+	SYSCON->SYSAHBCLKCTRL |= HW::CLK::WWDT_M;
+	SYSCON->PDRUNCFG &= ~(1<<6); // WDTOSC_PD = 0
+	SYSCON->WDTOSCCTRL = (1<<5)|1; 
+
+	WDT->TC = 0x1FF;
+	WDT->MOD = 0x3;
+	ResetWDT();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static void UpdateLog()
+static void InitRsp30()
+{
+	for (u16 i = 0; i < ArraySize(buf_rsp30); i++)
+	{
+		buf_rsp30[i].rw = 0;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Rsp30* GetRsp30()
+{
+	Rsp30 *rsp = &buf_rsp30[rdInd_rsp30];
+
+	if (rsp->rw == 0)
+	{
+		rsp = 0;
+	}
+	else
+	{
+		rdInd_rsp30 = (rdInd_rsp30 + 1) & 3;
+	};
+
+	return rsp;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateRsp30()
+{
+	static TM32 tm;
+	static byte prMtrSt = 0;
+
+	static byte prState = 0;
+
+	static Rsp30 *rsp = 0;
+	static u16 n = 0;
+	static u16 i = 0;
+
+//	static ComPort::WriteBuffer wb;
+
+	if (prState == 0 && motorState != prMtrSt && (motorState == 1 || motorState == 3))
+	{
+		rsp = &buf_rsp30[wrInd_rsp30];
+		n = ArraySize(rsp->data);
+		i = 0;
+		prState = (rsp->rw == 0) ? motorState : 0;
+	};
+
+	if (prState)
+	{
+		if (tm.Check(2))
+		{
+			rsp->data[i++] = curADC;
+
+			n -= 1;
+
+			if (n == 0/* || prState != motorState*/)
+			{
+				rsp->rw = 0x0030;
+				rsp->dir = (prState - 1) / 2;
+				rsp->st = 2;
+				rsp->sl = i;
+
+				wrInd_rsp30 = (wrInd_rsp30 + 1) & 3;
+
+				prState = 0;
+			};
+		};
+	};
+
+	prMtrSt = motorState;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+/*static void UpdateLog()
 {
 	static u16 pt = 0;
 
@@ -985,7 +1093,7 @@ static void UpdateLog()
 		com.Update();
 	};
 
-}
+}*/
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1003,9 +1111,10 @@ void UpdateHardware()
 	{
 		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
-//		CALL( PID_Update()	);
-//		CALL( UpdateMotor() );
-//		CALL( UpdateLog()	);
+		CALL( PID_Update()	);
+		CALL( UpdateMotor() );
+		CALL( if (HW::GPIO->B0[15] != 0) OpenValve(); else CloseValve(); );
+		CALL( UpdateRsp30()	);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;
