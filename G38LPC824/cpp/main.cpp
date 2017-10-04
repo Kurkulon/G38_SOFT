@@ -31,7 +31,7 @@ static bool RequestMan_00(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[3];
 
-	if (wb == 0) return false;
+	if (wb == 0 || len != 1) return false;
 
 	rsp[0] = manReqWord;
 	rsp[1] = numDevice;
@@ -49,7 +49,7 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0) return false;
+	if (wb == 0 || len != 1) return false;
 
 	rsp[0] = manReqWord|0x10;	// 	1. ответное слово
 
@@ -65,7 +65,7 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[7];
 
-	if (wb == 0) return false;
+	if (wb == 0 || len != 1) return false;
 
 	rsp[0] = manReqWord|0x20;	//	1.ќтветное слово (прин€та€ команда)
 	rsp[1] = GetAP();			//	2.ƒавление (у.е)
@@ -87,7 +87,7 @@ static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp0[4];
 
-	if (wb == 0) return false;
+	if (wb == 0 || len != 1) return false;
 
 	rsp_30 = GetRsp30();
 
@@ -113,7 +113,7 @@ static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	if (wb == 0) return false;
+	if (wb == 0 || len != 1) return false;
 
 	cal[0] = manReqWord|0x70;	// 	1. ответное слово
 
@@ -129,7 +129,7 @@ static bool RequestMan_80(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0 || len < 3) return false;
+	if (wb == 0 || len != 3) return false;
 
 	switch (data[1])
 	{
@@ -154,7 +154,7 @@ static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0/* || len < 3*/) return false;
+	if (wb == 0 || len != 3) return false;
 
 	//switch (data[1])
 	//{
@@ -195,7 +195,7 @@ static bool RequestMan_F0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0) return false;
+	if (wb == 0 || len != 1) return false;
 
 //	SaveParams();
 
