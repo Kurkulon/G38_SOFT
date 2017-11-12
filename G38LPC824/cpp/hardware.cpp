@@ -1110,6 +1110,8 @@ void UpdateHardware()
 
 	static TM32 tm;
 
+	static Deb db(false, 20);
+
 
 	#define CALL(p) case (__LINE__-S): p; break;
 
@@ -1120,7 +1122,7 @@ void UpdateHardware()
 		CALL( TahoSync()	);
 		CALL( PID_Update()	);
 		CALL( UpdateMotor() );
-		CALL( if (HW::GPIO->B0[15] != 0) OpenValve(); else CloseValve(); );
+		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
 		CALL( UpdateRsp30()	);
 	};
 

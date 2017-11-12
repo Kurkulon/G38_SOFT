@@ -333,7 +333,7 @@ int main()
 	tm.Reset();
 	tm.Reset();
 
-	while (!tm.Check(1000))
+	while (!tm.Check(5000))
 	{
 		UpdateHardware();
 	};
