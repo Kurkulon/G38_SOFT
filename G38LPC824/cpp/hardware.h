@@ -8,7 +8,7 @@
 #include <windows.h>
 #endif
 
-struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[100]; };
+struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; };
 
 extern void InitHardware();
 extern void UpdateHardware();
@@ -83,7 +83,7 @@ inline bool CalibrateShaftPos()
 
 	if (IsMotorIdle())
 	{
-		motorState = 5;
+		motorState = 9;
 		return true;
 	};
 

@@ -576,7 +576,7 @@ static void UpdateMotor()
 			{
 				closeShaftPos = maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 30;
+				openShaftPos = closeShaftPos + 50;
 
 				maxOpenShaftPos = openShaftPos + 10;
 
@@ -649,6 +649,23 @@ static void UpdateMotor()
 				maxOpenShaftPos = shaftPos;
 	
 				tm.Reset();
+			};
+
+			break;
+
+		case 9:
+
+			tm.Reset();
+
+			motorState++;
+
+			break;
+
+		case 10:
+
+			if (tm.Check(5000))
+			{
+				motorState = 5;
 			};
 
 			break;
