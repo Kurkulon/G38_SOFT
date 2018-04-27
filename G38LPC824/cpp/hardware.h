@@ -31,6 +31,73 @@ extern Rsp30* GetRsp30();
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#define MSTEN			(0x1)
+#define SLVEN			(0x2)
+#define MSTPENDING		(0x1)
+#define MSTSTATE		(0xe)
+#define MSTST_IDLE		(0x0)
+#define MSTST_RX 		(0x2)
+#define MSTST_TX 		(0x4)
+#define MSTST_NACK_ADDR (0x6)
+#define MSTST_NACK_TX	(0x8)
+#define SLVPENDING		(0x100)
+#define SLVSTATE		(0x600)
+#define SLVST_ADDR		(0x000)
+#define SLVST_RX 		(0x200)
+#define SLVST_TX 		(0x400)
+#define MSTCONTINUE		(0x1)
+#define MSTSTART		(0x2)
+#define MSTSTOP			(0x4)
+#define SLVCONTINUE		(0x1)
+#define SLVNACK			(0x2)
+#define SLVDMA			8
+#define SLVPENDINGEN	(0x100)
+#define SLVDESELEN		(1<<15)
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+struct DSCTWI
+{
+	void*	wdata;
+	void*	rdata;
+	u16		wlen;
+	u16		rlen;
+	byte	adr;
+	bool	ready;
+};
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool Init_TWI();
+extern bool Write_TWI(DSCTWI *d);
+inline bool Read_TWI(DSCTWI *d) { return Write_TWI(d); }
+extern bool Update_TWI();
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//struct TWI
+//{
+//	DSCTWI* dsc;
+//
+//	static byte *wrPtr;
+//	static byte *rdPtr;
+//	static u16 wrCount;
+//	static u16 rdCount;
+//	static byte adr;
+//
+//	TWI() : dsc(0) {}
+//
+//	bool Init(byte num);
+//
+//	bool Write(DSCTWI *d);
+//	bool Read(DSCTWI *d) { return Write(d); }
+//	bool Update();
+//
+//	static __irq void Handler_TWI();
+//};
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 inline bool IsMotorIdle()
 {
 	extern byte motorState;

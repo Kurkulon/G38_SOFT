@@ -7,6 +7,7 @@
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
+
 u32 fps = 0;
 
 //static byte sec = 0;
@@ -24,6 +25,51 @@ static u16 verDevice = 0x101;
 static u16 cal[129];
 
 static Rsp30 *rsp_30 = 0;
+
+static float temp = 0;
+
+inline u16 ReverseWord(u16 v) { __asm	{ rev16 v, v };	return v; }
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateTemp()
+{
+	static byte i = 0;
+
+	static DSCTWI dsc;
+	static byte reg = 0;
+	static u16 rbuf = 0;
+
+	switch (i)
+	{
+		case 0:
+
+			dsc.wdata = &reg;
+			dsc.wlen = 1;
+			dsc.rdata = &rbuf;
+			dsc.rlen = 2;
+			dsc.adr = 0x49;
+
+			if (Write_TWI(&dsc))
+			{
+				i++;
+			};
+
+			break;
+
+		case 1:
+
+			if (!Update_TWI())
+			{
+				temp = ((i16)ReverseWord(rbuf)) / 32;
+				temp /= 4;
+
+				i = 0;
+			};
+
+			break;
+	};
+}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -318,6 +364,8 @@ int main()
 
 	InitHardware();
 
+	Init_TWI();
+
 	com.Connect(0, 100000, 2);
 
 //	OpenValve(1000, -1);
@@ -347,6 +395,8 @@ int main()
 		UpdateHardware();
 
 		UpdateMan();
+
+		UpdateTemp();
 
 //		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
 

@@ -25,26 +25,35 @@ extern byte core_sys_array[0x100000];
 #define MKPID(n,i) n##_M=(1UL<<(i&31)), n##_I=i
 
 
-#define SPI0_IRQ	0		/*!< SPI0                                             */
-#define SPI1_IRQ    1 		/*!< SPI1                                             */
-#define	UART0_IRQ   3 		/*!< USART0                                            */
-#define	UART1_IRQ	4 		/*!< USART1                                            */
-#define	UART2_IRQ	5 		/*!< USART2                                            */
-#define	I2C_IRQ  	8 		/*!< I2C                                              */
-#define	SCT_IRQ  	9 		/*!< SCT                                              */
-#define	MRT_IRQ		10		/*!< MRT                                              */
-#define	CMP_IRQ		11		/*!< CMP                                              */
-#define	WDT_IRQ		12      /*!< WDT                                              */
-#define	BOD_IRQ		13   	/*!< BOD                                              */
-#define	WKT_IRQ		15   	/*!< WKT Interrupt                                    */
-#define	PININT0_IRQ	24   	/*!< External Interrupt 0                             */
-#define	PININT1_IRQ	25   	/*!< External Interrupt 1                             */
-#define	PININT2_IRQ	26   	/*!< External Interrupt 2                             */
-#define	PININT3_IRQ	27   	/*!< External Interrupt 3                             */
-#define	PININT4_IRQ	28   	/*!< External Interrupt 4                             */
-#define	PININT5_IRQ	29   	/*!< External Interrupt 5                             */
-#define	PININT6_IRQ	30   	/*!< External Interrupt 6                             */
-#define	PININT7_IRQ	31   	/*!< External Interrupt 7                             */
+#define	SPI0_IRQ                         0               //   0  SPI0                                                             
+#define	SPI1_IRQ                         1               //   1  SPI1                                                             
+#define	UART0_IRQ                        3               //   3  UART0                                                            
+#define	UART1_IRQ                        4               //   4  UART1                                                            
+#define	UART2_IRQ                        5               //   5  UART2                                                            
+#define	I2C1_IRQ                         7               //   7  I2C1                                                             
+#define	I2C0_IRQ                         8               //   8  I2C0                                                             
+#define	SCT_IRQ                          9               //   9  SCT                                                              
+#define	MRT_IRQ                         10               //  10  MRT                                                              
+#define	CMP_IRQ                         11               //  11  CMP                                                              
+#define	WDT_IRQ                         12               //  12  WDT                                                              
+#define	BOD_IRQ                         13               //  13  BOD                                                              
+#define	FLASH_IRQ                       14               //  14  FLASH                                                            
+#define	WKT_IRQ                         15               //  15  WKT                                                              
+#define	ADC_SEQA_IRQ                    16               //  16  ADC_SEQA                                                         
+#define	ADC_SEQB_IRQ                    17               //  17  ADC_SEQB                                                         
+#define	ADC_THCMP_IRQ                   18               //  18  ADC_THCMP                                                        
+#define	ADC_OVR_IRQ                     19               //  19  ADC_OVR                                                          
+#define	DMA_IRQ                         20               //  20  DMA                                                              
+#define	I2C2_IRQ                        21               //  21  I2C2                                                             
+#define	I2C3_IRQ                        22               //  22  I2C3                                                             
+#define	PIN_INT0_IRQ                    24               //  24  PIN_INT0                                                         
+#define	PIN_INT1_IRQ                    25               //  25  PIN_INT1                                                         
+#define	PIN_INT2_IRQ                    26               //  26  PIN_INT2                                                         
+#define	PIN_INT3_IRQ                    27               //  27  PIN_INT3                                                         
+#define	PIN_INT4_IRQ                    28               //  28  PIN_INT4                                                         
+#define	PIN_INT5_IRQ                    29               //  29  PIN_INT5                                                         
+#define	PIN_INT6_IRQ                    30               //  30  PIN_INT6                                                         
+#define	PIN_INT7_IRQ                    31               //  31  PIN_INT7
 
 // DMA_CFG
 
@@ -208,6 +217,18 @@ namespace T_HW
 		S_PIO 	PIO0_6;                     /*!< (@ 0x40044040) I/O configuration for pin PIO0_6 */
 		S_PIO 	PIO0_0;                     /*!< (@ 0x40044044) I/O configuration for pin PIO0_0 */
 		S_PIO 	PIO0_14;                    /*!< (@ 0x40044048) I/O configuration for pin PIO0_14 */
+		LPC_REG z_Reserved1;
+		S_PIO 	PIO0_28;                   /*!< (@ 0x40044050) I/O configuration for pin PIO0_28                      */
+		S_PIO 	PIO0_27;                   /*!< (@ 0x40044054) I/O configuration for pin PIO0_27                      */
+		S_PIO 	PIO0_26;                   /*!< (@ 0x40044058) I/O configuration for pin PIO0_26                      */
+		S_PIO 	PIO0_25;                   /*!< (@ 0x4004405C) I/O configuration for pin PIO0_25                      */
+		S_PIO 	PIO0_24;                   /*!< (@ 0x40044060) I/O configuration for pin PIO0_24                      */
+		S_PIO 	PIO0_23;                   /*!< (@ 0x40044064) I/O configuration for pin PIO0_23/ADC_3                */
+		S_PIO	PIO0_22;                   /*!< (@ 0x40044068) I/O configuration for pin PIO0_22/ADC_4                */
+		S_PIO	PIO0_21;                   /*!< (@ 0x4004406C) I/O configuration for pin PIO0_21/ACMP_I4/ADC_5        */
+		S_PIO	PIO0_20;                   /*!< (@ 0x40044070) I/O configuration for pin PIO0_20/ADC_6                */
+		S_PIO	PIO0_19;                   /*!< (@ 0x40044074) I/O configuration for pin PIO0_19/ADC_7                */
+		S_PIO	PIO0_18;                   /*!< (@ 0x40044078) I/O configuration for pin PIO0_18/ADC_8                */
 	};
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -775,6 +796,33 @@ namespace T_HW
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+	typedef struct S_TWI							// (@ 0x40050000) I2C0 Structure                                        
+	{
+		LPC_REG  CFG;                               // (@ 0x40050000) Configuration for shared functions.               
+		LPC_REG  STAT;                              // (@ 0x40050004) Status register for Master, Slave, and Monitor functions.
+		LPC_REG  INTENSET;                          // (@ 0x40050008) Interrupt Enable Set and read register.                
+		LPC_REG  INTENCLR;                          // (@ 0x4005000C) Interrupt Enable Clear register.                       
+		LPC_REG  TIMEOUT;                           // (@ 0x40050010) Time-out value register.                           
+		LPC_REG  CLKDIV;                            // (@ 0x40050014) Clock pre-divider for the entire I2C block. This determines what time increments are used for the MSTTIME and SLVTIME registers.                                                
+		LPC_REG  INTSTAT;                           // (@ 0x40050018) Interrupt Status register for Master, Slave, and Monitor functions.                                             
+		LPC_REG  RESERVED0;
+		LPC_REG  MSTCTL;                            // (@ 0x40050020) Master control register.                           
+		LPC_REG  MSTTIME;                           // (@ 0x40050024) Master timing configuration.                       
+		LPC_REG  MSTDAT;                            // (@ 0x40050028) Combined Master receiver and transmitter data register.                                                          
+		LPC_REG  RESERVED1[5];
+		LPC_REG  SLVCTL;                            // (@ 0x40050040) Slave control register.                            
+		LPC_REG  SLVDAT;                            // (@ 0x40050044) Combined Slave receiver and transmitter data register.                                                          
+		LPC_REG  SLVADR0;                           // (@ 0x40050048) Slave address 0.                                   
+		LPC_REG  SLVADR1;                           // (@ 0x4005004C) Slave address 0.                                   
+		LPC_REG  SLVADR2;                           // (@ 0x40050050) Slave address 0.                                   
+		LPC_REG  SLVADR3;                           // (@ 0x40050054) Slave address 0.                                   
+		LPC_REG  SLVQUAL0;                          // (@ 0x40050058) Slave Qualification for address 0.                 
+		LPC_REG  RESERVED2[9];
+		LPC_REG  MONRXDAT;                          // (@ 0x40050080) Monitor receiver data register.                    
+
+	} S_I2C0, S_I2C1, S_I2C2, S_I2C3;
+
+	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
@@ -810,6 +858,11 @@ namespace HW
 	MK_PTR(USART0,			0x40064000);
 	MK_PTR(USART1,			0x40068000);
 	MK_PTR(USART2,			0x4006C000);
+
+	MK_PTR(I2C0,			0x40050000);
+	MK_PTR(I2C1,			0x40054000);
+	MK_PTR(I2C2,			0x40070000);
+	MK_PTR(I2C3,			0x40074000);
 
 	MK_PTR(CRC,				0x50000000);
 	MK_PTR(SCT,				0x50004000);

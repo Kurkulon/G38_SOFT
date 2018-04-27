@@ -6,6 +6,8 @@
 
 #include "ComPort.h"
 
+
+
 u16 curHV = 0;
 u16 reqHV = 800;
 u16 curADC = 0;
@@ -499,11 +501,15 @@ static void UpdateMotor()
 				{
 					SetDestShaftPos(closeShaftPos++);
 					openShaftPos = closeShaftPos + deltaShaftPos;
+					tm3.Reset();
 				};
-			};
-			//else if (tm3.Check(500))
+			}
+			//else if (tm3.Check(1000))
 			//{
-			//	SetDestShaftPos(closeShaftPos--);
+			//	if (curADC < 20) 
+			//	{
+			//		SetDestShaftPos(closeShaftPos--);
+			//	};
 			//};
 
 			prevshaftPos = shaftPos;
@@ -959,10 +965,10 @@ static void InitTaho()
 	PIN_INT->RISE = 7;
 	PIN_INT->IST = 7;
 
-	VectorTableExt[PININT0_IRQ] = TahoHandler;
-	VectorTableExt[PININT1_IRQ] = TahoHandler;
-	VectorTableExt[PININT2_IRQ] = TahoHandler;
-	CM0::NVIC->ISER[0] = 7<<PININT0_IRQ;
+	VectorTableExt[PIN_INT0_IRQ] = TahoHandler;
+	VectorTableExt[PIN_INT1_IRQ] = TahoHandler;
+	VectorTableExt[PIN_INT2_IRQ] = TahoHandler;
+	CM0::NVIC->ISER[0] = 7<<PIN_INT0_IRQ;
 
 	GPIO->SET0 = (1<<14);
 
@@ -986,6 +992,7 @@ void InitHardware()
 	InitPWM();
 	InitTaho();
 	InitRsp30();
+
 //	StopMotor();
 
 //	com.Connect(0, 921600, 0);
@@ -1118,6 +1125,233 @@ static void UpdateRsp30()
 	};
 
 }*/
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//byte *twiData = (byte*)&twiReq;
+//u16 twiCount = 0;
+//u16 twiMaxCount = sizeof(req);
+//u32 twiReqCount = 0;
+//bool twiWrite = false;
+//bool twiRead = false;
+//
+//byte twiWrBuf[4] = {0,0,0,0};
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static byte *twi_wrPtr = 0;
+static byte *twi_rdPtr = 0;
+static u16 twi_wrCount = 0;
+static u16 twi_rdCount = 0;
+static byte twi_adr = 0;
+static DSCTWI* twi_dsc = 0;
+
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+__irq void Handler_TWI()
+{
+	using namespace HW;
+
+	//static byte *pr = (byte*)&req;
+	//static byte *pw = twiWrBuf;
+	//static u16 cr = 0;
+	//static u16 cw = 0;
+
+	if(I2C1->INTSTAT & MSTPENDING)
+	{
+		u32 state = I2C1->STAT & MSTSTATE;
+
+		if(state == MSTST_IDLE) // Address plus R/W received
+		{
+			if (twi_rdCount == 0 && twi_wrCount == 0)
+			{
+				I2C1->INTENCLR = MSTPENDING;
+				I2C1->CFG = 0;
+			};
+		}
+		else if(state == MSTST_RX) // Received data is available
+		{
+			*twi_rdPtr++ = I2C1->MSTDAT; // receive data
+
+			twi_rdCount--;
+
+			I2C1->MSTCTL = (twi_rdCount > 0) ? MSTCONTINUE : MSTSTOP; 
+		}
+		else if(state == MSTST_TX) // Data can be transmitted 
+		{
+			if (twi_wrCount > 0)
+			{
+				I2C1->MSTDAT = *twi_wrPtr++;
+				I2C1->MSTCTL = MSTCONTINUE;
+				twi_wrCount--;
+			}
+			else if (twi_rdCount > 0)
+			{
+				I2C1->MSTDAT = (twi_adr << 1) | 1;
+				I2C1->MSTCTL = MSTSTART;
+			}
+			else
+			{
+				I2C1->MSTCTL = MSTSTOP;
+			};
+		};
+		
+		I2C1->STAT = MSTPENDING;
+	};
+
+
+	//if(I2C1->INTSTAT & SLVDESELEN)
+	//{
+	//	I2C1->STAT = SLVDESELEN;
+	//	twiCount = count;
+	//	twiReqCount++;
+	//	twiWrite = write;
+	//	twiRead = read;
+
+	//	if (read)
+	//	{
+	//		req.busy = true;
+	//		req.ready = false;
+	//	};
+	//};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool Init_TWI()
+{
+	using namespace HW;
+
+	SYSCON->SYSAHBCLKCTRL |= CLK::I2C1_M;
+
+	SWM->I2C1_SCL = 25;
+	SWM->I2C1_SDA = 24;
+
+	HW::IOCON->PIO0_25.B.OD = 1;
+	HW::IOCON->PIO0_24.B.OD = 1;
+
+	//SWM->PINENABLE0.B.I2C0_SCL = 0;
+	//SWM->PINENABLE0.B.I2C0_SDA = 0;
+
+	VectorTableExt[I2C1_IRQ] = Handler_TWI;
+	CM0::NVIC->ICPR[0] = 1 << I2C1_IRQ;
+	CM0::NVIC->ISER[0] = 1 << I2C1_IRQ;
+
+//	I2C1->CLKDIV = 3;
+//	I2C1->INTENSET = MSTPENDING;
+//	I2C1->CFG = MSTEN;
+
+	return true;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+//static void UpdateTWI()
+//{
+//	static byte i = 0;
+//
+//	switch (i)
+//	{
+//		case 0:
+//
+//			if (twiRead)
+//			{
+//				HW::SCT->CTRL_L = 1<<2;
+//				HW::SCT->OUTPUT = 0;
+//
+//				//HW::SCT->OUTPUT = 1;
+//
+//				i++;
+//			};
+//
+//			break;
+//
+//		case 1:
+//
+//			HW::GPIO->MASK0 = ~(0xF<<17);
+//			HW::GPIO->MPIN0 = req.chnl<<17;
+//
+//			i++;
+//
+//			break;
+//
+//		case 2:
+//
+//			HW::SCT->OUTPUT = 1;
+//			HW::SCT->CTRL_L = 1<<1;
+//
+//			twiRead = false;
+//			req.busy = false;
+//			req.ready = true;
+//
+//			i = 0;
+//
+//			break;
+//	};
+//
+//}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool Write_TWI(DSCTWI *d)
+{
+	using namespace HW;
+
+	if (twi_dsc != 0 || d == 0) { return false; };
+	if ((d->wdata == 0 || d->wlen == 0) && (d->rdata == 0 || d->rlen == 0)) { return false; }
+
+//	smask = 1<<13;
+	twi_dsc = d;
+
+	VectorTableExt[I2C1_IRQ] = Handler_TWI;
+	CM0::NVIC->ICPR[0] = 1 << I2C1_IRQ;
+	CM0::NVIC->ISER[0] = 1 << I2C1_IRQ;
+
+	twi_dsc->ready = false;
+
+	twi_wrPtr = (byte*)twi_dsc->wdata;	
+	twi_rdPtr = (byte*)twi_dsc->rdata;	
+	twi_wrCount = twi_dsc->wlen;
+	twi_rdCount = twi_dsc->rlen;
+	twi_adr = twi_dsc->adr;
+
+	__disable_irq();
+
+	I2C1->CLKDIV = 3;
+	I2C1->INTENSET = MSTPENDING;
+	I2C1->CFG = MSTEN;
+
+	I2C1->MSTDAT = (twi_dsc->adr << 1) | ((twi_wrCount == 0) ? 1 : 0);
+	I2C1->MSTCTL = MSTSTART;
+
+	__enable_irq();
+
+	return true;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bool Update_TWI()
+{
+	if (twi_dsc == 0)
+	{ 
+		return false; 
+	}
+	else if ((HW::I2C1->CFG & MSTEN) == 0)
+	{
+		twi_dsc->ready = true;
+		twi_dsc = 0;
+
+		return false;
+	}
+	else
+	{
+		return true;
+	};
+}
+
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
