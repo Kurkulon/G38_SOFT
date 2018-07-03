@@ -142,6 +142,7 @@ i32 destShaftPos = 0;
 static i32 pidOut = 0;
 
 static i32 maxOut = 0;
+static i32 limOut = 0;
 
 const u16 maxDuty = 470;
 u16 duty = 0, curd = 0;
@@ -283,7 +284,7 @@ inline void LockShaftPos()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static u16 SetDutyCurrent(u16 cur)
+static i32 SetDutyCurrent(u16 cur)
 {
 	//static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
 	//dword t = GetMilliseconds();
@@ -317,7 +318,7 @@ static u16 SetDutyCurrent(u16 cur)
 
 		e2 = e1; e1 = e;
 
-		return duty / 65536;
+		return duty;
 	}
 	else
 	{
@@ -339,7 +340,7 @@ static void PID_Update()
 	static i32 e1 = 0, e2 = 0;
 //	static i32 dst = 0;
 
-	const i32 Kp = 40.0 * 65536, Ki = 0.1 * 65536, Kd = 10.0 * 65536;
+	const i32 Kp = 40.0 * 65536, Ki = 0.05 * 65536, Kd = 0.0 * 65536;
 
 	i32 e;
 
@@ -361,12 +362,20 @@ static void PID_Update()
 		//float kdd = Kd * 1000 / dt;
 		//float kid = Ki * 1000 / dt;
 
-		pidOut += (Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2));
+		pidOut += Kp * (e - e1) + Ki * e;// + Kd * (e - e1 * 2  + e2));
 
 //		maxOut = (i32)maxDuty * 65536;
-		maxOut = (i32)SetDutyCurrent(500) * 65536;
+		maxOut = SetDutyCurrent(600);
 
-	
+		limOut = e;
+
+		if (limOut < 0) { limOut = -limOut; };
+		if (limOut > 5) { limOut = 5; };
+
+		limOut = (limOut + 1) * 6000000;
+
+		if (maxOut > limOut) maxOut = limOut;
+
 		if (pidOut < -maxOut) 
 		{
 			pidOut = -maxOut;
@@ -426,6 +435,8 @@ void OpenValve()
 {
 	if (motorState == 0 || motorState == 2)
 	{
+		EnableDriver();
+
 		SetDestShaftPos(openShaftPos);
 
 		motorState = 3;
@@ -438,6 +449,8 @@ void CloseValve()
 {
 	if (motorState == 0 || motorState == 4)
 	{
+		EnableDriver();
+
 		SetDestShaftPos(closeShaftPos);
 
 		motorState = 1;
@@ -449,7 +462,7 @@ void CloseValve()
 static void UpdateMotor()
 {
 	//u32 tacho, t;
-	static TM32 tm, tm2, tm3;
+	static TM32 tm, tm2;//, tm3;
 	static i32 prevshaftPos = 0;
 	static u32 t = 500;
 
@@ -465,7 +478,7 @@ static void UpdateMotor()
 
 		case 1: // Закрытие
 
-			if (tm.Check(100))
+			if (tm.Check(200))
 			{
 				maxCloseShaftPos = shaftPos;
 				closeShaftPos = maxCloseShaftPos+3;
@@ -478,7 +491,9 @@ static void UpdateMotor()
 				openShaftPos = closeShaftPos + deltaShaftPos;
 				
 				tm2.Reset();
-				t = 500;
+				t = 200;
+
+//				DisableDriver();
 
 				motorState++;
 			}
@@ -495,13 +510,17 @@ static void UpdateMotor()
 
 			if (tm2.Check(t))
 			{
-				t = 50;
+				t = 200;
 
-				if (curADC > 50) 
+				if (curADC > 40) 
 				{
 					SetDestShaftPos(closeShaftPos++);
 					openShaftPos = closeShaftPos + deltaShaftPos;
-					tm3.Reset();
+//					tm3.Reset();
+				}
+				else
+				{
+//					DisableDriver();
 				};
 			}
 			//else if (tm3.Check(1000))
@@ -520,7 +539,7 @@ static void UpdateMotor()
 
 		case 3: // Открытие
 
-			if (tm.Check(100))
+			if (tm.Check(200))
 			{
 				maxOpenShaftPos = shaftPos;
 				openShaftPos = maxOpenShaftPos - 10;
@@ -530,9 +549,12 @@ static void UpdateMotor()
 			{
 				SetDestShaftPos(openShaftPos);
 
-//				closeShaftPos = openShaftPos - deltaShaftPos;
+				closeShaftPos = openShaftPos - deltaShaftPos;
 
+				tm2.Reset();
 				t = 500;
+
+//				DisableDriver();
 
 				motorState++;
 			}
@@ -551,10 +573,10 @@ static void UpdateMotor()
 			{
 				t = 50;
 
-				if (curADC > 50) 
+				if (curADC > 40) 
 				{
-					SetDestShaftPos(openShaftPos--);
-					closeShaftPos = openShaftPos - deltaShaftPos;
+//					SetDestShaftPos(openShaftPos--);
+//					closeShaftPos = openShaftPos - deltaShaftPos;
 				};
 			};
 
@@ -580,21 +602,11 @@ static void UpdateMotor()
 
 			if (tm.Check(500))
 			{
-				closeShaftPos = maxCloseShaftPos+15;
+				maxCloseShaftPos = shaftPos = 0;
 
-				openShaftPos = closeShaftPos + 50;
+//				DisableDriver();
 
-				maxOpenShaftPos = openShaftPos + 10;
-
-				deltaShaftPos = openShaftPos - closeShaftPos;
-							
-				SetDestShaftPos(closeShaftPos);
-
-				motorState = 1;
-
-//				SetDestShaftPos(shaftPos+60);
-
-//				motorState++;
+				motorState++;
 			}
 			else if (shaftPos < maxCloseShaftPos)
 			{
@@ -614,48 +626,38 @@ static void UpdateMotor()
 
 			if (tm.Check(100))
 			{
-				openShaftPos = maxOpenShaftPos - 10;
-				
+				closeShaftPos = shaftPos + 23; // maxCloseShaftPos+15;
+
+				openShaftPos = closeShaftPos + 50;
+
+				maxOpenShaftPos = openShaftPos + 10;
+
 				deltaShaftPos = openShaftPos - closeShaftPos;
-
-				if (deltaShaftPos > 50 ) { deltaShaftPos = 50; };
-
-				openShaftPos = closeShaftPos + deltaShaftPos;
-
-				//maxOpenShaftPos - 10;
-
+							
 				SetDestShaftPos(closeShaftPos);
 
+				//tm2.Reset();
+				//t = 500;
+
 				motorState = 1;
-			}
-			else if (shaftPos > maxOpenShaftPos)
-			{
-				maxOpenShaftPos = shaftPos;
-	
-				tm.Reset();
-			}
-			else if ((shaftPos - prevshaftPos) > 2)
-			{
-				prevshaftPos = shaftPos;
-				tm.Reset();
 			};
 
 			break;
 
 		case 8:
 
-			if (tm.Check(200))
-			{
-				SetDestShaftPos(maxOpenShaftPos - 1);
+			//if (tm.Check(200))
+			//{
+			//	SetDestShaftPos(maxOpenShaftPos - 1);
 
-				motorState = 0;
-			}
-			else if (shaftPos > closeShaftPos)
-			{
-				maxOpenShaftPos = shaftPos;
+			//	motorState = 0;
+			//}
+			//else if (shaftPos > closeShaftPos)
+			//{
+			//	maxOpenShaftPos = shaftPos;
 	
-				tm.Reset();
-			};
+			//	tm.Reset();
+			//};
 
 			break;
 
@@ -902,6 +904,10 @@ static __irq void TahoHandler()
 {
 	tachoCount++;
 
+	byte ist = HW::PIN_INT->IST & 7;
+
+	HW::PIN_INT->IST = ist;
+
 	t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
 
 	s = states[t];
@@ -912,9 +918,9 @@ static __irq void TahoHandler()
 	HW::SWM->CTOUT_0 = LG_pin[t];
 	HW::SWM->CTOUT_1 = HG_pin[t];
 
-	shaftPos += tachoEncoder[(HW::GPIO->PIN0 >> 8) & 7][HW::PIN_INT->IST&7];
+	shaftPos += tachoEncoder[t & 7][ist];
 
-	HW::PIN_INT->IST = 7;
+	HW::PIN_INT->IENF = (~t) & 7;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -928,16 +934,18 @@ static void TahoSync()
 		pt = GetMillisecondsLow();
 
 		__disable_irq();
+
+		HW::PIN_INT->IENF = (~(HW::GPIO->PIN0 >> 8)) & 7;
 		
-		byte t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
+		//byte t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
 
-		byte s = states[t];
+		//byte s = states[t];
 
-		HW::GPIO->MASK0 = ~(0x3F << 17);
-		HW::GPIO->MPIN0 = (u32)s << 17;
+		//HW::GPIO->MASK0 = ~(0x3F << 17);
+		//HW::GPIO->MPIN0 = (u32)s << 17;
 
-		HW::SWM->CTOUT_0 = LG_pin[t];
-		HW::SWM->CTOUT_1 = HG_pin[t];
+		//HW::SWM->CTOUT_0 = LG_pin[t];
+		//HW::SWM->CTOUT_1 = HG_pin[t];
 
 		__enable_irq();
 
@@ -951,26 +959,26 @@ static void InitTaho()
 {
 	using namespace HW;
 
-
 	IOCON->PIO0_8.B.HYS = 1;
 	IOCON->PIO0_9.B.HYS = 1;
 
 	SYSCON->PINTSEL[0] = 8;
 	SYSCON->PINTSEL[1] = 9;
 	SYSCON->PINTSEL[2] = 10;
-	PIN_INT->ISEL = 0;
-	PIN_INT->SIENF = 7;
-	PIN_INT->SIENR = 7;
-	PIN_INT->FALL = 7;
-	PIN_INT->RISE = 7;
-	PIN_INT->IST = 7;
+	PIN_INT->ISEL = 1;
+//	PIN_INT->SIENF = 7;
+	PIN_INT->IENR = 7;
+//	PIN_INT->FALL = 7;
+//	PIN_INT->RISE = 7;
+//	PIN_INT->IST = 7;
+	PIN_INT->IENF = ((HW::GPIO->PIN0 >> 8)) & 7;
 
 	VectorTableExt[PIN_INT0_IRQ] = TahoHandler;
 	VectorTableExt[PIN_INT1_IRQ] = TahoHandler;
 	VectorTableExt[PIN_INT2_IRQ] = TahoHandler;
 	CM0::NVIC->ISER[0] = 7<<PIN_INT0_IRQ;
 
-	GPIO->SET0 = (1<<14);
+	EnableDriver();
 
 	GPIO->SET0 = (0x3F<<17);
 
@@ -1055,7 +1063,7 @@ static void UpdateRsp30()
 	if (prState == 0 && motorState != prMtrSt && (motorState == 1 || motorState == 3))
 	{
 		rsp = &buf_rsp30[wrInd_rsp30];
-		n = ArraySize(rsp->data);
+		n = 100;//ArraySize(rsp->data);
 		i = 0;
 		prState = (rsp->rw == 0) ? motorState : 0;
 	};

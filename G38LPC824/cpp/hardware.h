@@ -25,6 +25,9 @@ extern void SetDutyPWMDir(i32 v);
 
 extern void SetDutyPWM(u16 v);
 
+inline void EnableDriver() { HW::GPIO->SET0 = (1<<14); }
+inline void DisableDriver() { HW::GPIO->CLR0 = (1<<14); }
+
 extern void OpenValve();
 extern void CloseValve();
 extern Rsp30* GetRsp30();

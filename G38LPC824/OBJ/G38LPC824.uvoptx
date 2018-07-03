@@ -117,10 +117,6 @@
       <TargetDriverDllRegistry>
         <SetRegEntry>
           <Number>0</Number>
-          <Key>DLGUARM</Key>
-        </SetRegEntry>
-        <SetRegEntry>
-          <Number>0</Number>
           <Key>ARMRTXEVENTFLAGS</Key>
           <Name>-L50 -Z18 -C0 -M0 -T0</Name>
         </SetRegEntry>
@@ -160,12 +156,12 @@
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>pidOut,0x10</ItemText>
+          <ItemText>pidOut,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>maxOut,0x10</ItemText>
+          <ItemText>maxOut,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
@@ -221,6 +217,11 @@
           <count>14</count>
           <WinNumber>1</WinNumber>
           <ItemText>temp,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>15</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>limOut,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>

@@ -364,7 +364,7 @@ int main()
 
 	InitHardware();
 
-	Init_TWI();
+//	Init_TWI();
 
 	com.Connect(0, 100000, 2);
 
@@ -441,7 +441,7 @@ int main()
 //
 //			case 2:
 //
-//				if (tm.Check((!c)?500:500))
+//				if (tm.Check((!c)?1000:1000))
 //				{
 ////					SetDutyPWMDir(pwm = -pwm);
 //					i = 0;
