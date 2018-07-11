@@ -147,6 +147,8 @@ static i32 limOut = 0;
 const u16 maxDuty = 470;
 u16 duty = 0, curd = 0;
 
+static i32 Kp = 40.0 * 65536, Ki = 0.1 * 65536, Kd = 10.0 * 65536;
+static i32 iKp = 1.0 * 65536, iKi = 0.02 * 65536, iKd = 10.0 * 65536;
 
 
 
@@ -293,7 +295,7 @@ static i32 SetDutyCurrent(u16 cur)
 	static i32 e1 = 0, e2 = 0;
 	static i32 duty = 0;
 
-	const i32 Kp = 1.0 * 65536, Ki = 0.02 * 65536, Kd = 10.0 * 65536;
+//	const i32 iKp = 1.0 * 65536, iKi = 0.02 * 65536, iKd = 10.0 * 65536;
 
 	i32 e;
 
@@ -303,7 +305,7 @@ static i32 SetDutyCurrent(u16 cur)
 
 		e = (i32)cur - (i32)curADC;
 
-		duty += Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2);
+		duty += iKp * (e - e1) + iKi * e + iKd * (e - e1 * 2  + e2);
 
 		u32 t = maxDuty * 65536;
 
@@ -340,55 +342,42 @@ static void PID_Update()
 	static i32 e1 = 0, e2 = 0;
 //	static i32 dst = 0;
 
-	const i32 Kp = 40.0 * 65536, Ki = 0.05 * 65536, Kd = 0.0 * 65536;
+//	const i32 Kp = 10.0 * 65536, Ki = 0.01 * 65536, Kd = 0.0 * 65536;
 
 	i32 e;
 
+	e = destShaftPos - GetShaftPos();
+	
+	//float kp = Kp;
+	//float kdd = Kd * 1000 / dt;
+	//float kid = Ki * 1000 / dt;
 
-	if (HW::MRT->Channel[3].STAT & 1)
-	{
-		HW::MRT->Channel[3].STAT = 1;
-
-		HW::GPIO->NOT0 = 1<<12;
-
-//		pt = t;
-
-//		if (destShaftPos > dst) { dst += 1; } else if (destShaftPos < dst) { dst -= 1; };
-
-
-		e = destShaftPos - GetShaftPos();
-		
-		//float kp = Kp;
-		//float kdd = Kd * 1000 / dt;
-		//float kid = Ki * 1000 / dt;
-
-		pidOut += Kp * (e - e1) + Ki * e;// + Kd * (e - e1 * 2  + e2));
+	pidOut += Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2);
 
 //		maxOut = (i32)maxDuty * 65536;
-		maxOut = SetDutyCurrent(600);
+	maxOut = SetDutyCurrent(500);
 
-		limOut = e;
+	//limOut = e;
 
-		if (limOut < 0) { limOut = -limOut; };
-		if (limOut > 5) { limOut = 5; };
+	//if (limOut < 0) { limOut = -limOut; };
+	//if (limOut > 5) { limOut = 5; };
 
-		limOut = (limOut + 1) * 6000000;
+	//limOut = (limOut + 1) * 6000000;
 
-		if (maxOut > limOut) maxOut = limOut;
+	//if (maxOut > limOut) maxOut = limOut;
 
-		if (pidOut < -maxOut) 
-		{
-			pidOut = -maxOut;
-		}
-		else if (pidOut > maxOut)
-		{
-			pidOut = maxOut;
-		};
-
-		SetDutyPWMDir(pidOut/65536);
-
-		e2 = e1; e1 = e;
+	if (pidOut < -maxOut) 
+	{
+		pidOut = -maxOut;
+	}
+	else if (pidOut > maxOut)
+	{
+		pidOut = maxOut;
 	};
+
+	SetDutyPWMDir(pidOut/65536);
+
+	e2 = e1; e1 = e;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -478,20 +467,20 @@ static void UpdateMotor()
 
 		case 1: // Закрытие
 
-			if (tm.Check(200))
-			{
-				maxCloseShaftPos = shaftPos;
-				closeShaftPos = maxCloseShaftPos+3;
-			};
+			//if (tm.Check(100))
+			//{
+			//	maxCloseShaftPos = shaftPos;
+			//	closeShaftPos = maxCloseShaftPos+3;
+			//};
 
 			if (shaftPos <= closeShaftPos/* || tm.Check(100)*/)
 			{
 				SetDestShaftPos(closeShaftPos--);
 
-				openShaftPos = closeShaftPos + deltaShaftPos;
+//				openShaftPos = closeShaftPos + deltaShaftPos;
 				
 				tm2.Reset();
-				t = 200;
+				t = 500;
 
 //				DisableDriver();
 
@@ -510,12 +499,12 @@ static void UpdateMotor()
 
 			if (tm2.Check(t))
 			{
-				t = 200;
+				t = 50;
 
-				if (curADC > 40) 
+				if (curADC > 50) 
 				{
-					SetDestShaftPos(closeShaftPos++);
-					openShaftPos = closeShaftPos + deltaShaftPos;
+					//SetDestShaftPos(closeShaftPos++);
+					//openShaftPos = closeShaftPos + deltaShaftPos;
 //					tm3.Reset();
 				}
 				else
@@ -539,11 +528,11 @@ static void UpdateMotor()
 
 		case 3: // Открытие
 
-			if (tm.Check(200))
-			{
-				maxOpenShaftPos = shaftPos;
-				openShaftPos = maxOpenShaftPos - 10;
-			};
+			//if (tm.Check(100))
+			//{
+			//	maxOpenShaftPos = shaftPos;
+			//	openShaftPos = maxOpenShaftPos - 10;
+			//};
 
 			if (shaftPos >= openShaftPos/* || tm.Check(100)*/)
 			{
@@ -573,10 +562,10 @@ static void UpdateMotor()
 			{
 				t = 50;
 
-				if (curADC > 40) 
+				if (curADC > 50) 
 				{
-//					SetDestShaftPos(openShaftPos--);
-//					closeShaftPos = openShaftPos - deltaShaftPos;
+					//SetDestShaftPos(openShaftPos--);
+					//closeShaftPos = openShaftPos - deltaShaftPos;
 				};
 			};
 
@@ -626,9 +615,9 @@ static void UpdateMotor()
 
 			if (tm.Check(100))
 			{
-				closeShaftPos = shaftPos + 23; // maxCloseShaftPos+15;
+				closeShaftPos = shaftPos + 5; // maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 50;
+				openShaftPos = closeShaftPos + 100;
 
 				maxOpenShaftPos = openShaftPos + 10;
 
@@ -785,7 +774,7 @@ static void UpdateADC()
 	enum C { S = (__LINE__+3) };
 	switch(i++)
 	{
-		CALL( fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;	curADC = fcurADC >> 3;	);
+//		CALL( fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;	curADC = fcurADC >> 1;	);
 		CALL( fvAP += (((ADC->DAT1&0xFFF0) * 3300) >> 16) - vAP; vAP = fvAP >> 3;	);
 	};
 
@@ -990,6 +979,24 @@ static void InitTaho()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+__irq void MRT_Handler()
+{
+	if (HW::MRT->IRQ_FLAG & 8)
+	{
+//		HW::GPIO->SET0 = 1<<12;
+
+		fcurADC += (((HW::ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC; curADC = fcurADC >> 3;
+
+		PID_Update();
+
+//		HW::GPIO->CLR0 = 1<<12;
+	};
+
+	HW::MRT->IRQ_FLAG = 0xF;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 void InitHardware()
 {
 	using namespace HW;
@@ -1005,16 +1012,25 @@ void InitHardware()
 
 //	com.Connect(0, 921600, 0);
 
-	HW::MRT->Channel[3].CTRL = 0;
+
+	VectorTableExt[MRT_IRQ] = MRT_Handler;
+	CM0::NVIC->ICPR[0] = 1 << MRT_IRQ;
+	CM0::NVIC->ISER[0] = 1 << MRT_IRQ;
+	HW::MRT->Channel[3].CTRL = 1;
 	HW::MRT->Channel[3].INTVAL = (MCK/10000)|(1UL<<31);
+
 
 	SYSCON->SYSAHBCLKCTRL |= HW::CLK::WWDT_M;
 	SYSCON->PDRUNCFG &= ~(1<<6); // WDTOSC_PD = 0
 	SYSCON->WDTOSCCTRL = (1<<5)|1; 
 
+#ifndef _DEBUG
+
 	WDT->TC = 0x1FF;
 	WDT->MOD = 0x3;
 	ResetWDT();
+
+#endif
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1152,6 +1168,8 @@ static byte *twi_wrPtr = 0;
 static byte *twi_rdPtr = 0;
 static u16 twi_wrCount = 0;
 static u16 twi_rdCount = 0;
+static byte *twi_wrPtr2 = 0;
+static u16 twi_wrCount2 = 0;
 static byte twi_adr = 0;
 static DSCTWI* twi_dsc = 0;
 
@@ -1194,6 +1212,13 @@ __irq void Handler_TWI()
 				I2C1->MSTDAT = *twi_wrPtr++;
 				I2C1->MSTCTL = MSTCONTINUE;
 				twi_wrCount--;
+
+				if(twi_wrCount == 0 && twi_wrCount2 != 0)
+				{
+					twi_wrPtr = twi_wrPtr2;
+					twi_wrCount = twi_wrCount2;
+					twi_wrCount2 = 0;
+				};
 			}
 			else if (twi_rdCount > 0)
 			{
@@ -1204,6 +1229,13 @@ __irq void Handler_TWI()
 			{
 				I2C1->MSTCTL = MSTSTOP;
 			};
+		}
+		else
+		{
+			twi_rdCount = 0;
+			twi_wrCount = 0;
+
+			I2C1->MSTCTL = MSTSTOP;
 		};
 		
 		I2C1->STAT = MSTPENDING;
@@ -1321,9 +1353,13 @@ bool Write_TWI(DSCTWI *d)
 
 	twi_wrPtr = (byte*)twi_dsc->wdata;	
 	twi_rdPtr = (byte*)twi_dsc->rdata;	
+	twi_wrPtr2 = (byte*)twi_dsc->wdata2;	
 	twi_wrCount = twi_dsc->wlen;
+	twi_wrCount2 = twi_dsc->wlen2;
 	twi_rdCount = twi_dsc->rlen;
 	twi_adr = twi_dsc->adr;
+
+	if (twi_wrPtr2 == 0) twi_wrCount2 = 0;
 
 	__disable_irq();
 
@@ -1341,22 +1377,22 @@ bool Write_TWI(DSCTWI *d)
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-bool Update_TWI()
+bool Check_TWI_ready()
 {
 	if (twi_dsc == 0)
 	{ 
-		return false; 
+		return true; 
 	}
 	else if ((HW::I2C1->CFG & MSTEN) == 0)
 	{
 		twi_dsc->ready = true;
 		twi_dsc = 0;
 
-		return false;
+		return true;
 	}
 	else
 	{
-		return true;
+		return false;
 	};
 }
 
@@ -1367,10 +1403,7 @@ void UpdateHardware()
 {
 	static byte i = 0;
 
-	static TM32 tm;
-
 	static Deb db(false, 20);
-
 
 	#define CALL(p) case (__LINE__-S): p; break;
 
@@ -1379,9 +1412,8 @@ void UpdateHardware()
 	{
 		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
-		CALL( PID_Update()	);
-		CALL( UpdateMotor() );
-		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
+//		CALL( UpdateMotor() );
+//		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
 		CALL( UpdateRsp30()	);
 	};
 

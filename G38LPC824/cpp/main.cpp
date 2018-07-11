@@ -22,13 +22,60 @@ static u16 verDevice = 0x101;
 
 //static u32 manCounter = 0;
 
-static u16 cal[129];
+static u16 cal[128+32];
+static bool loadCal = true;
+static bool saveCal = false;
 
 static Rsp30 *rsp_30 = 0;
 
-static float temp = 0;
+static u16 temp = 0;
 
 inline u16 ReverseWord(u16 v) { __asm	{ rev16 v, v };	return v; }
+
+static void* eepromData = 0;
+static u16 eepromWriteLen = 0;
+static u16 eepromReadLen = 0;
+static u16 eepromStartAdr = 0;
+
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static bool WriteEEPROM(void* data, u16 len, u16 adr)
+{
+	if (data == 0 || len == 0 || eepromWriteLen != 0)
+	{
+		return false;
+	};
+
+	eepromData = data;
+	eepromWriteLen = len;
+	eepromStartAdr = adr;
+
+	return true;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static bool ReadEEPROM(void* data, u16 len, u16 adr)
+{
+	if (data == 0 || len == 0 || eepromReadLen != 0)
+	{
+		return false;
+	};
+
+	eepromData = data;
+	eepromReadLen = len;
+	eepromStartAdr = adr;
+
+	return true;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static bool Check_EEPROM_Ready()
+{
+	return eepromReadLen == 0 && eepromWriteLen == 0;
+}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -39,36 +86,170 @@ static void UpdateTemp()
 	static DSCTWI dsc;
 	static byte reg = 0;
 	static u16 rbuf = 0;
+	static byte *romData = 0;
+	static u16 romAdr = 0;
+	static u16 revRomAdr = 0;
+	static u16 romWrLen = 0;
+	static u16 romRdLen = 0;
+	static u16 pageLen = 0;
+
+	static TM32 tm;
+
+//	HW::GPIO->SET0 = 1<<12;
 
 	switch (i)
 	{
 		case 0:
 
-			dsc.wdata = &reg;
-			dsc.wlen = 1;
-			dsc.rdata = &rbuf;
-			dsc.rlen = 2;
-			dsc.adr = 0x49;
-
-			if (Write_TWI(&dsc))
+			if (eepromWriteLen != 0)
 			{
-				i++;
+				if (eepromData == 0)
+				{
+					eepromWriteLen = 0;
+				}
+				else
+				{
+					romData = (byte*)eepromData;
+					romWrLen = eepromWriteLen;
+					romAdr = eepromStartAdr;
+					revRomAdr = ReverseWord(romAdr);
+
+					i = 2;
+				};
+			}
+			else if (eepromReadLen != 0)
+			{
+				if (eepromData == 0)
+				{
+					eepromReadLen = 0;
+				}
+				else
+				{
+					romData = (byte*)eepromData;
+					romRdLen = eepromReadLen;
+					romAdr = eepromStartAdr;
+					revRomAdr = ReverseWord(romAdr);
+
+					i = 5;
+				};
+			}
+			else if (tm.Check(20))
+			{
+				dsc.wdata = &reg;
+				dsc.wlen = 1;
+				dsc.rdata = &rbuf;
+				dsc.rlen = 2;
+				dsc.adr = 0x49;
+				dsc.wdata2 = 0;
+				dsc.wlen2 = 0;
+
+
+				if (Write_TWI(&dsc))
+				{
+					i++;
+				};
 			};
 
 			break;
 
 		case 1:
 
-			if (!Update_TWI())
+			if (Check_TWI_ready())
 			{
-				temp = ((i16)ReverseWord(rbuf)) / 32;
-				temp /= 4;
+				temp = ((i16)ReverseWord(rbuf) + 64) / 128;
+
+				i = 0;
+			};
+
+			break;
+
+		case 2:		// Write at24c128
+
+			pageLen = (romWrLen > 64) ? 64 : romWrLen;
+
+			dsc.wdata = &revRomAdr;
+			dsc.wlen = sizeof(revRomAdr);
+			dsc.wdata2 = romData;
+			dsc.wlen2 = pageLen;
+			dsc.rdata = 0;
+			dsc.rlen = 0;
+			dsc.adr = 0x50;
+
+			if (Write_TWI(&dsc))
+			{
+				tm.Reset();
+
+				i++;
+			};
+
+			break;
+
+		case 3:
+
+			if (Check_TWI_ready())
+			{
+				tm.Reset();
+
+				i++;
+			};
+
+			break;
+
+		case 4:
+
+			if (tm.Check(10))
+			{
+				romWrLen -= pageLen;
+				romData += pageLen;
+				revRomAdr = ReverseWord(romAdr += pageLen);
+
+				if (romWrLen > 0)
+				{
+					i = 2;
+				}
+				else
+				{
+					eepromWriteLen = 0;
+
+					i = 0;
+				};
+
+			};
+
+			break;
+
+		case 5:		// Read at24c128
+
+			dsc.wdata = &revRomAdr;
+			dsc.wlen = sizeof(revRomAdr);
+			dsc.wdata2 = 0;
+			dsc.wlen2 = 0;
+			dsc.rdata = romData;
+			dsc.rlen = romRdLen;
+			dsc.adr = 0x50;
+
+			if (Read_TWI(&dsc))
+			{
+				tm.Reset();
+
+				i++;
+			};
+
+			break;
+
+		case 6:
+
+			if (Check_TWI_ready())
+			{
+				eepromReadLen = 0;
 
 				i = 0;
 			};
 
 			break;
 	};
+
+//	HW::GPIO->CLR0 = 1<<12;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -117,7 +298,7 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	rsp[1] = GetAP();			//	2.Давление (у.е)
 	rsp[2] = 100;				//	3.Температура манометра (у.е)
 	rsp[3] = GetAP() / 2;		//	4.Давление (0.01 МПа)
-	rsp[4] = 25;				//	5.Температура в приборе(гр)(short)
+	rsp[4] = temp;				//	5.Температура в приборе(гр)(short)
 	rsp[5] = GetShaftPos();		//	6.6.Положение вала двигателя (short у.е)
 	rsp[6] = GetCurrent();		//	7.7.Ток двигателя (мА)
 
@@ -222,10 +403,12 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	if (wb == 0 || len < 129) return false;
 
-	for (byte i = 1; i < 129; i++)
+	for (byte i = 0; i < 128; i++)
 	{
 		cal[i] = data[i];
 	};
+
+	saveCal = true;
 
 	rsp[0] = manReqWord|0xE0;
  
@@ -351,6 +534,137 @@ static void UpdateMan()
 	};
 }
 
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateLoadSave()
+{
+	static byte i = 0;
+	static u16 adr = 0;
+	static u16 count = 0;
+
+	switch(i)
+	{
+		case 0:
+
+			if (loadCal)
+			{
+				adr = 0;
+				count = 4;
+
+				i = 1;
+			}
+			else if (saveCal)
+			{
+				adr = 0;
+				count = 4;
+
+				u16 n = ArraySize(cal) - 1;
+
+				cal[n] = GetCRC(cal, sizeof(cal) - 2);
+
+				i = 3;
+			};
+
+			break;
+
+		case 1:
+
+			if (ReadEEPROM(cal, sizeof(cal), adr))
+			{
+				i++;
+			};
+
+			break;
+
+		case 2:
+
+			if (Check_EEPROM_Ready())
+			{
+				if (GetCRC(cal, sizeof(cal)) != 0)
+				{
+					adr += sizeof(cal);
+					count -= 1;
+
+					if (count > 0)
+					{
+						i = 1;	
+					}
+					else
+					{
+						for (u16 n = 0; n < ArraySize(cal); n++)
+						{
+							cal[n] = 0x55AA;
+						};
+
+						loadCal = false;
+						saveCal = true;
+
+						i = 0;
+					};
+				}
+				else
+				{
+					loadCal = false;
+
+					i = 0;
+				};
+			};
+
+			break;
+
+		case 3:
+
+			if (WriteEEPROM(cal, sizeof(cal), adr))
+			{
+				i++;
+			};
+
+			break;
+
+		case 4:
+
+			if (Check_EEPROM_Ready())
+			{
+				adr += sizeof(cal);
+				count -= 1;
+
+				if (count > 0)
+				{
+					i = 3;	
+				}
+				else
+				{
+					saveCal = false;
+
+					i = 0;
+				};
+			};
+
+			break;
+	};
+
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateMisc()
+{
+	static byte i = 0;
+
+	#define CALL(p) case (__LINE__-S): p; break;
+
+	enum C { S = (__LINE__+3) };
+	switch(i++)
+	{
+		CALL( UpdateHardware();	);
+		CALL( UpdateMan()		);
+		CALL( UpdateTemp()		);
+		CALL( UpdateLoadSave()	);
+	};
+
+	i = (i > (__LINE__-S-3)) ? 0 : i;
+}
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 int main()
@@ -358,13 +672,13 @@ int main()
 	static bool c = true;
 
 	TM32 tm;
-	Dbt db(100);
+//	Dbt db(100);
 
 //	__breakpoint(0);
 
 	InitHardware();
 
-//	Init_TWI();
+	Init_TWI();
 
 	com.Connect(0, 100000, 2);
 
@@ -390,13 +704,12 @@ int main()
 
 	while (1)
 	{
-//		HW::GPIO->NOT0 = 1<<12;
+		HW::GPIO->SET0 = 1<<12;
 
-		UpdateHardware();
+		UpdateMisc();
 
-		UpdateMan();
+		HW::GPIO->CLR0 = 1<<12;
 
-		UpdateTemp();
 
 //		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
 
@@ -407,48 +720,48 @@ int main()
 		};
 
 
-//		switch (i)
-//		{
-//			case 0: 
-//
-//				if (IsMotorIdle())
-//				{
-//					if (c)
-//					{
-//						OpenValve();
-//					}
-//					else
-//					{
-//						CloseValve();
-//					};
-//
-//					c = !c;
-//
-//					i++;
-//				};
-//
-//				break;
-//
-//			case 1:
-//
-//				if (IsMotorIdle())
-//				{
-//					tm.Reset();
-//					i++;
-//				};
-//
-//				break;
-//
-//			case 2:
-//
-//				if (tm.Check((!c)?1000:1000))
-//				{
-////					SetDutyPWMDir(pwm = -pwm);
-//					i = 0;
-//				};
-//
-//				break;
-//		}; // switch (i)
+		switch (i)
+		{
+			case 0: 
+
+				if (IsMotorIdle())
+				{
+					if (c)
+					{
+						OpenValve();
+					}
+					else
+					{
+						CloseValve();
+					};
+
+					c = !c;
+
+					i++;
+				};
+
+				break;
+
+			case 1:
+
+				if (IsMotorIdle())
+				{
+					tm.Reset();
+					i++;
+				};
+
+				break;
+
+			case 2:
+
+				if (tm.Check((!c)?1000:1000))
+				{
+//					SetDutyPWMDir(pwm = -pwm);
+					i = 0;
+				};
+
+				break;
+		}; // switch (i)
 
 	}; // while (1)
 }

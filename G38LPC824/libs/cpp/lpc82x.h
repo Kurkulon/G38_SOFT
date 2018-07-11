@@ -502,7 +502,7 @@ namespace T_HW
 			LPC_REG STAT;
 		} Channel[4];
 	   
-		LPC_REG Reserved0[1];
+		LPC_REG Reserved0[45];
 		LPC_REG IDLE_CH;
 		LPC_REG IRQ_FLAG;
 	};
