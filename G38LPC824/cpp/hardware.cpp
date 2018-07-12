@@ -139,16 +139,19 @@ byte HG_pin[16] =		{ NN, UH, VH, VH, WH, UH, WH, NN,		NN, WH, UH, WH, VH, VH, UH
 
 i32 destShaftPos = 0;
 
+static i32 fltDestShaftPos = 0;
+
 static i32 pidOut = 0;
+static i32 curPidOut = 0;
 
 static i32 maxOut = 0;
 static i32 limOut = 0;
 
-const u16 maxDuty = 470;
+const u16 maxDuty = 400;
 u16 duty = 0, curd = 0;
 
-static i32 Kp = 40.0 * 65536, Ki = 0.1 * 65536, Kd = 10.0 * 65536;
-static i32 iKp = 1.0 * 65536, iKi = 0.02 * 65536, iKd = 10.0 * 65536;
+static i32 Kp = 2000000, Ki = 4000, Kd = 20000;
+static i32 iKp = 200, iKi = 10, iKd = 100;
 
 
 
@@ -307,7 +310,7 @@ static i32 SetDutyCurrent(u16 cur)
 
 		duty += iKp * (e - e1) + iKi * e + iKd * (e - e1 * 2  + e2);
 
-		u32 t = maxDuty * 65536;
+		u32 t = 65536;
 
 		if (duty < 0) 
 		{
@@ -346,7 +349,16 @@ static void PID_Update()
 
 	i32 e;
 
-	e = destShaftPos - GetShaftPos();
+	//if (destShaftPos > fltDestShaftPos)
+	//{
+	//	fltDestShaftPos += 1;
+	//}
+	//else if (destShaftPos < fltDestShaftPos)
+	//{
+	//	fltDestShaftPos -= 1;
+	//};
+
+	e = destShaftPos - shaftPos;
 	
 	//float kp = Kp;
 	//float kdd = Kd * 1000 / dt;
@@ -354,18 +366,8 @@ static void PID_Update()
 
 	pidOut += Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2);
 
-//		maxOut = (i32)maxDuty * 65536;
-	maxOut = SetDutyCurrent(500);
-
-	//limOut = e;
-
-	//if (limOut < 0) { limOut = -limOut; };
-	//if (limOut > 5) { limOut = 5; };
-
-	//limOut = (limOut + 1) * 6000000;
-
-	//if (maxOut > limOut) maxOut = limOut;
-
+	i32	maxOut = (i32)maxDuty * 65536;
+	
 	if (pidOut < -maxOut) 
 	{
 		pidOut = -maxOut;
@@ -375,7 +377,11 @@ static void PID_Update()
 		pidOut = maxOut;
 	};
 
-	SetDutyPWMDir(pidOut/65536);
+	i32 po = pidOut/65536;
+	
+	po *= SetDutyCurrent(600);
+
+	SetDutyPWMDir(curPidOut = po/65536);
 
 	e2 = e1; e1 = e;
 }
@@ -477,10 +483,10 @@ static void UpdateMotor()
 			{
 				SetDestShaftPos(closeShaftPos--);
 
-//				openShaftPos = closeShaftPos + deltaShaftPos;
+				openShaftPos = closeShaftPos + deltaShaftPos;
 				
 				tm2.Reset();
-				t = 500;
+				t = 100;
 
 //				DisableDriver();
 
@@ -503,8 +509,8 @@ static void UpdateMotor()
 
 				if (curADC > 50) 
 				{
-					//SetDestShaftPos(closeShaftPos++);
-					//openShaftPos = closeShaftPos + deltaShaftPos;
+					SetDestShaftPos(closeShaftPos++);
+					openShaftPos = closeShaftPos + deltaShaftPos;
 //					tm3.Reset();
 				}
 				else
@@ -541,7 +547,7 @@ static void UpdateMotor()
 				closeShaftPos = openShaftPos - deltaShaftPos;
 
 				tm2.Reset();
-				t = 500;
+				t = 100;
 
 //				DisableDriver();
 
@@ -615,38 +621,40 @@ static void UpdateMotor()
 
 			if (tm.Check(100))
 			{
-				closeShaftPos = shaftPos + 5; // maxCloseShaftPos+15;
+				closeShaftPos = shaftPos + 23; // maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 100;
+				openShaftPos = closeShaftPos + 50;
 
 				maxOpenShaftPos = openShaftPos + 10;
 
 				deltaShaftPos = openShaftPos - closeShaftPos;
 							
-				SetDestShaftPos(closeShaftPos);
+				SetDestShaftPos(shaftPos);
+
+				DisableDriver();
 
 				//tm2.Reset();
 				//t = 500;
 
-				motorState = 1;
+				motorState++;
 			};
 
 			break;
 
 		case 8:
 
-			//if (tm.Check(200))
-			//{
-			//	SetDestShaftPos(maxOpenShaftPos - 1);
+			if (tm.Check(100))
+			{
+				EnableDriver();
 
-			//	motorState = 0;
-			//}
-			//else if (shaftPos > closeShaftPos)
-			//{
-			//	maxOpenShaftPos = shaftPos;
-	
-			//	tm.Reset();
-			//};
+				SetDestShaftPos(closeShaftPos);
+
+				motorState = 1;
+			}
+			else 
+			{
+				SetDestShaftPos(shaftPos);
+			};
 
 			break;
 
@@ -939,6 +947,15 @@ static void TahoSync()
 		__enable_irq();
 
 		HW::ResetWDT();
+
+		//if (destShaftPos > fltDestShaftPos)
+		//{
+		//	fltDestShaftPos += 1;
+		//}
+		//else if (destShaftPos < fltDestShaftPos)
+		//{
+		//	fltDestShaftPos -= 1;
+		//};
 	};
 }
 
@@ -985,7 +1002,9 @@ __irq void MRT_Handler()
 	{
 //		HW::GPIO->SET0 = 1<<12;
 
-		fcurADC += (((HW::ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC; curADC = fcurADC >> 3;
+		curADC = ((HW::ADC->DAT0&0xFFF0) * 1800) >> 16;
+
+//		fcurADC += (((HW::ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC; curADC = fcurADC >> 3;
 
 		PID_Update();
 
@@ -1412,7 +1431,7 @@ void UpdateHardware()
 	{
 		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
-//		CALL( UpdateMotor() );
+		CALL( UpdateMotor() );
 //		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
 		CALL( UpdateRsp30()	);
 	};

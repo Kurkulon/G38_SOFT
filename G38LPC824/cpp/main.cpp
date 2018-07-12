@@ -754,7 +754,7 @@ int main()
 
 			case 2:
 
-				if (tm.Check((!c)?1000:1000))
+				if (tm.Check((!c)?500:500))
 				{
 //					SetDutyPWMDir(pwm = -pwm);
 					i = 0;
