@@ -165,7 +165,7 @@
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>maxOut,0x0A</ItemText>
+          <ItemText>curPidOut,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
@@ -256,6 +256,21 @@
           <count>21</count>
           <WinNumber>1</WinNumber>
           <ItemText>iKd,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>22</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>fltDestShaftPos,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>23</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>buf_rsp30</ItemText>
+        </Ww>
+        <Ww>
+          <count>24</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>motorState</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -421,6 +436,12 @@
       <pszMrule></pszMrule>
       <pSingCmds></pSingCmds>
       <pMultCmds></pMultCmds>
+      <SystemViewers>
+        <Entry>
+          <Name>System Viewer\ADC</Name>
+          <WinId>35905</WinId>
+        </Entry>
+      </SystemViewers>
     </TargetOption>
   </Target>
 
