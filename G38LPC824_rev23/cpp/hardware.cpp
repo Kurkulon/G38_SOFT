@@ -346,7 +346,7 @@ static void PID_Update()
 	{
 		HW::MRT->Channel[3].STAT = 1;
 
-		HW::GPIO->NOT0 = 1<<12;
+//		HW::GPIO->NOT0 = 1<<12;
 
 //		pt = t;
 

@@ -342,11 +342,14 @@ int main()
 
 	while (1)
 	{
-//		HW::GPIO->NOT0 = 1<<12;
 
 		UpdateHardware();
 
+		HW::GPIO->SET0 = 1<<12;
+		
 		UpdateMan();
+
+		HW::GPIO->CLR0 = 1<<12;
 
 //		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
 

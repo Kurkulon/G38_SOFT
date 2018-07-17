@@ -657,7 +657,6 @@ static void UpdateMisc()
 	switch(i++)
 	{
 		CALL( UpdateHardware();	);
-		CALL( UpdateMan()		);
 		CALL( UpdateTemp()		);
 		CALL( UpdateLoadSave()	);
 	};
@@ -706,9 +705,12 @@ int main()
 	{
 		HW::GPIO->SET0 = 1<<12;
 
-		UpdateMisc();
+		UpdateMan();
 
 		HW::GPIO->CLR0 = 1<<12;
+
+		UpdateMisc();
+
 
 
 //		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
