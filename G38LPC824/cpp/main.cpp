@@ -722,48 +722,48 @@ int main()
 		};
 
 
-//		switch (i)
-//		{
-//			case 0: 
-//
-//				if (IsMotorIdle())
-//				{
-//					if (c)
-//					{
-//						OpenValve();
-//					}
-//					else
-//					{
-//						CloseValve();
-//					};
-//
-//					c = !c;
-//
-//					i++;
-//				};
-//
-//				break;
-//
-//			case 1:
-//
-//				if (IsMotorIdle())
-//				{
-//					tm.Reset();
-//					i++;
-//				};
-//
-//				break;
-//
-//			case 2:
-//
-//				if (tm.Check((!c)?500:500))
-//				{
-////					SetDutyPWMDir(pwm = -pwm);
-//					i = 0;
-//				};
-//
-//				break;
-//		}; // switch (i)
+		switch (i)
+		{
+			case 0: 
+
+				if (IsMotorIdle())
+				{
+					if (c)
+					{
+						OpenValve();
+					}
+					else
+					{
+						CloseValve();
+					};
+
+					c = !c;
+
+					i++;
+				};
+
+				break;
+
+			case 1:
+
+				if (IsMotorIdle())
+				{
+					tm.Reset();
+					i++;
+				};
+
+				break;
+
+			case 2:
+
+				if (tm.Check((!c)?500:500))
+				{
+//					SetDutyPWMDir(pwm = -pwm);
+					i = 0;
+				};
+
+				break;
+		}; // switch (i)
 
 	}; // while (1)
 }

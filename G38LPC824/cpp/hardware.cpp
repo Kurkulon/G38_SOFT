@@ -150,10 +150,13 @@ static i32 limOut = 0;
 const u16 maxDuty = 400;
 u16 duty = 0, curd = 0;
 
-static i32 Kp = 2000000, Ki = 4000, Kd = 20000;
+static i32 Kp = 1000000/*2000000*/, Ki = 2000/*4000*/, Kd = 500000;
 static i32 iKp = 200, iKi = 10, iKd = 100;
 
-
+static u32 startOpenTime = 0;
+static u32 startCloseTime = 0;
+static u32 openValveTime = 0;
+static u32 closeValveTime = 0;
 
 
 
@@ -434,6 +437,8 @@ void OpenValve()
 
 		SetDestShaftPos(openShaftPos);
 
+		startOpenTime = GetMilliseconds();
+
 		motorState = 3;
 	};
 }
@@ -447,6 +452,8 @@ void CloseValve()
 		EnableDriver();
 
 		SetDestShaftPos(closeShaftPos);
+
+		startCloseTime = GetMilliseconds();
 
 		motorState = 1;
 	};
@@ -489,6 +496,8 @@ static void UpdateMotor()
 				t = 100;
 
 //				DisableDriver();
+
+				closeValveTime = GetMilliseconds() - startCloseTime;
 
 				motorState++;
 			}
@@ -550,6 +559,8 @@ static void UpdateMotor()
 				t = 100;
 
 //				DisableDriver();
+
+				openValveTime = GetMilliseconds() - startOpenTime;
 
 				motorState++;
 			}
@@ -1432,7 +1443,7 @@ void UpdateHardware()
 		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
 		CALL( UpdateMotor() );
-		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
+//		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
 		CALL( UpdateRsp30()	);
 	};
 
