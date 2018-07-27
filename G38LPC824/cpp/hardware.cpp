@@ -1022,7 +1022,7 @@ __irq void MRT_Handler()
 //		HW::GPIO->CLR0 = 1<<12;
 	};
 
-	HW::MRT->IRQ_FLAG = 0xF;
+	HW::MRT->IRQ_FLAG = 8;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1443,7 +1443,7 @@ void UpdateHardware()
 		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
 		CALL( UpdateMotor() );
-//		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
+		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
 		CALL( UpdateRsp30()	);
 	};
 
