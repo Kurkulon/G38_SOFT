@@ -480,11 +480,11 @@ static void UpdateMotor()
 
 		case 1: // Закрытие
 
-			//if (tm.Check(100))
-			//{
-			//	maxCloseShaftPos = shaftPos;
-			//	closeShaftPos = maxCloseShaftPos+3;
-			//};
+			if (tm.Check(200))
+			{
+				maxCloseShaftPos = shaftPos;
+				closeShaftPos = maxCloseShaftPos+3;
+			};
 
 			if (shaftPos <= closeShaftPos/* || tm.Check(100)*/)
 			{
