@@ -32,6 +32,9 @@ extern void OpenValve();
 extern void CloseValve();
 extern Rsp30* GetRsp30();
 
+extern byte motorState;
+extern i32 closeShaftPos;
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 #define MSTEN			(0x1)
@@ -131,6 +134,14 @@ inline u16 GetCurrent()
 {
 	extern u16 curADC;
 	return curADC;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline u16 GetAvrCurrent()
+{
+	extern u16 avrCurADC;
+	return avrCurADC;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

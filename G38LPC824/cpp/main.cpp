@@ -26,6 +26,11 @@ static u16 cal[128+32];
 static bool loadCal = true;
 static bool saveCal = false;
 
+static u16 nvParams[32];
+
+static bool loadParam = true;
+static bool saveParam = false;
+
 static Rsp30 *rsp_30 = 0;
 
 static u16 temp = 0;
@@ -37,6 +42,28 @@ static u16 eepromWriteLen = 0;
 static u16 eepromReadLen = 0;
 static u16 eepromStartAdr = 0;
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void ResetParams()
+{
+	nvParams[0] = numDevice = 11111;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void InitParams()
+{
+	numDevice = nvParams[0];
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void SaveParams()
+{
+	nvParams[0] = numDevice;
+
+	saveParam = true;
+}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -295,8 +322,8 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	if (wb == 0 || len != 1) return false;
 
 	rsp[0] = manReqWord|0x20;	//	1.Ответное слово (принятая команда)
-	rsp[1] = GetAP();			//	2.Давление (у.е)
-	rsp[2] = 100;				//	3.Температура манометра (у.е)
+	rsp[1] = closeShaftPos;		//	2.Давление (у.е)
+	rsp[2] = motorState;		//	3.Температура манометра (у.е)
 	rsp[3] = GetAP() / 2;		//	4.Давление (0.01 МПа)
 	rsp[4] = temp;				//	5.Температура в приборе(гр)(short)
 	rsp[5] = GetShaftPos();		//	6.6.Положение вала двигателя (short у.е)
@@ -426,7 +453,7 @@ static bool RequestMan_F0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	if (wb == 0 || len != 1) return false;
 
-//	SaveParams();
+	SaveParams();
 
 	rsp[0] = manReqWord|0xF0;
  
@@ -544,7 +571,7 @@ static void UpdateLoadSave()
 
 	switch(i)
 	{
-		case 0:
+		case 0: //+++++++++++++++++++++++++++++++++++++++++++++++
 
 			if (loadCal)
 			{
@@ -563,11 +590,29 @@ static void UpdateLoadSave()
 				cal[n] = GetCRC(cal, sizeof(cal) - 2);
 
 				i = 3;
+			}
+			else if (loadParam)
+			{
+				adr = 8192;
+				count = 4;
+
+				i = 5;
+			}
+			else if (saveParam)
+			{
+				adr = 8192;
+				count = 4;
+
+				u16 n = ArraySize(nvParams) - 1;
+
+				nvParams[n] = GetCRC(nvParams, sizeof(nvParams) - 2);
+
+				i = 7;
 			};
 
 			break;
 
-		case 1:
+		case 1: //+++++++++++++++++++++++++++++++++++++++++++++++
 
 			if (ReadEEPROM(cal, sizeof(cal), adr))
 			{
@@ -576,7 +621,7 @@ static void UpdateLoadSave()
 
 			break;
 
-		case 2:
+		case 2: //+++++++++++++++++++++++++++++++++++++++++++++++
 
 			if (Check_EEPROM_Ready())
 			{
@@ -612,7 +657,7 @@ static void UpdateLoadSave()
 
 			break;
 
-		case 3:
+		case 3: //+++++++++++++++++++++++++++++++++++++++++++++++
 
 			if (WriteEEPROM(cal, sizeof(cal), adr))
 			{
@@ -621,7 +666,7 @@ static void UpdateLoadSave()
 
 			break;
 
-		case 4:
+		case 4: //+++++++++++++++++++++++++++++++++++++++++++++++
 
 			if (Check_EEPROM_Ready())
 			{
@@ -635,6 +680,80 @@ static void UpdateLoadSave()
 				else
 				{
 					saveCal = false;
+
+					i = 0;
+				};
+			};
+
+			break;
+
+		case 5: //+++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (ReadEEPROM(nvParams, sizeof(nvParams), adr))
+			{
+				i++;
+			};
+
+			break;
+
+		case 6: //+++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (Check_EEPROM_Ready())
+			{
+				if (GetCRC(nvParams, sizeof(nvParams)) != 0)
+				{
+					adr += sizeof(nvParams);
+					count -= 1;
+
+					if (count > 0)
+					{
+						i = 5;	
+					}
+					else
+					{
+						ResetParams();
+
+						loadParam = false;
+						saveParam = true;
+
+						i = 0;
+					};
+				}
+				else
+				{
+					InitParams();
+
+					loadParam = false;
+
+					i = 0;
+				};
+			};
+
+			break;
+
+		case 7: //+++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (WriteEEPROM(nvParams, sizeof(nvParams), adr))
+			{
+				i++;
+			};
+
+			break;
+
+		case 8: //+++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (Check_EEPROM_Ready())
+			{
+				adr += sizeof(nvParams);
+				count -= 1;
+
+				if (count > 0)
+				{
+					i = 7;	
+				}
+				else
+				{
+					saveParam = false;
 
 					i = 0;
 				};

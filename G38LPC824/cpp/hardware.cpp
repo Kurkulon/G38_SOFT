@@ -6,18 +6,20 @@
 
 #include "ComPort.h"
 
-
+#define OPEN_VALVE_CUR 600
+#define CLOSE_VALVE_CUR 600
 
 u16 curHV = 0;
 u16 reqHV = 800;
 u16 curADC = 0;
+u16 avrCurADC = 0;
 u32 fcurADC = 0;
 u16 vAP = 0;
 u32 fvAP = 0;
 u32 tachoCount = 0;
 i32 shaftPos = 0;
 
-static i32 closeShaftPos = 0;
+i32 closeShaftPos = 0;
 static i32 openShaftPos = 0;
 static i32 deltaShaftPos = 0;
 static i32 maxCloseShaftPos = 0;
@@ -138,6 +140,7 @@ byte HG_pin[16] =		{ NN, UH, VH, VH, WH, UH, WH, NN,		NN, WH, UH, WH, VH, VH, UH
 
 
 i32 destShaftPos = 0;
+//u16 maxCurrent = 600;
 
 static i32 fltDestShaftPos = 0;
 
@@ -447,7 +450,7 @@ void OpenValve()
 
 void CloseValve()
 {
-	if (motorState == 0 || motorState == 4)
+	if (/*motorState == 0 || */motorState == 4)
 	{
 		EnableDriver();
 
@@ -472,6 +475,8 @@ static void UpdateMotor()
 	{
 		case 0:		// Idle;
 
+			DisableDriver();
+
 			prevshaftPos = shaftPos;
 
 			tm.Reset();
@@ -480,22 +485,35 @@ static void UpdateMotor()
 
 		case 1: // Закрытие
 
-			if (tm.Check(200))
+			if (tm.Check(500))
 			{
-				maxCloseShaftPos = shaftPos;
-				closeShaftPos = maxCloseShaftPos+3;
-			};
+				closeShaftPos = shaftPos;
 
-			if (shaftPos <= closeShaftPos/* || tm.Check(100)*/)
+				DisableDriver();
+
+				motorState = 0;
+
+//				t = 500;
+			}
+			else if (shaftPos <= closeShaftPos)
 			{
-				SetDestShaftPos(closeShaftPos--);
-
-				openShaftPos = closeShaftPos + deltaShaftPos;
+				if (curADC > 250) 
+				{
+					closeShaftPos += 2;
+				}
+				else
+				{
+					closeShaftPos -= 1;
+				};
 				
+				openShaftPos = closeShaftPos + deltaShaftPos;
+
 				tm2.Reset();
 				t = 100;
 
-//				DisableDriver();
+//				SetDestShaftPos(closeShaftPos+20);
+
+				DisableDriver();
 
 				closeValveTime = GetMilliseconds() - startCloseTime;
 
@@ -514,26 +532,25 @@ static void UpdateMotor()
 
 			if (tm2.Check(t))
 			{
-				t = 50;
-
-				if (curADC > 50) 
+				if (shaftPos > (closeShaftPos+30)) 
 				{
-					SetDestShaftPos(closeShaftPos++);
-					openShaftPos = closeShaftPos + deltaShaftPos;
-//					tm3.Reset();
-				}
-				else
-				{
-//					DisableDriver();
+				//	closeShaftPos++;
+					SetDestShaftPos(closeShaftPos);
+					EnableDriver();
+					motorState = 1;
 				};
-			}
-			//else if (tm3.Check(1000))
-			//{
-			//	if (curADC < 20) 
-			//	{
-			//		SetDestShaftPos(closeShaftPos--);
-			//	};
-			//};
+				//else if (shaftPos <= (closeShaftPos+25))
+				//{
+				//	DisableDriver();
+				//	t = 100;
+				//}
+				//else if (avrCurADC > 150)
+				//{
+				//	DisableDriver();
+
+				//	motorState = 0;
+				//};
+			};
 
 			prevshaftPos = shaftPos;
 
@@ -543,17 +560,17 @@ static void UpdateMotor()
 
 		case 3: // Открытие
 
-			//if (tm.Check(100))
-			//{
-			//	maxOpenShaftPos = shaftPos;
-			//	openShaftPos = maxOpenShaftPos - 10;
-			//};
+			if (tm.Check(500))
+			{
+				DisableDriver();
 
-			if (shaftPos >= openShaftPos/* || tm.Check(100)*/)
+				motorState++;
+			}
+			else if (shaftPos >= openShaftPos/* || tm.Check(100)*/)
 			{
 				SetDestShaftPos(openShaftPos);
 
-				closeShaftPos = openShaftPos - deltaShaftPos;
+//				closeShaftPos = openShaftPos - deltaShaftPos;
 
 				tm2.Reset();
 				t = 100;
@@ -564,7 +581,7 @@ static void UpdateMotor()
 
 				motorState++;
 			}
-			else if ((shaftPos - prevshaftPos) > 2/* || (curADC < 400)*/)
+			else if ((shaftPos - prevshaftPos) > 2)
 			{
 				prevshaftPos = shaftPos;
 
@@ -574,17 +591,6 @@ static void UpdateMotor()
 			break;
 
 		case 4: // Открыт
-
-			if (tm2.Check(t))
-			{
-				t = 50;
-
-				if (curADC > 50) 
-				{
-					//SetDestShaftPos(openShaftPos--);
-					//closeShaftPos = openShaftPos - deltaShaftPos;
-				};
-			};
 
 			prevshaftPos = shaftPos;
 
@@ -632,9 +638,9 @@ static void UpdateMotor()
 
 			if (tm.Check(100))
 			{
-				closeShaftPos = shaftPos + 23; // maxCloseShaftPos+15;
+				closeShaftPos = shaftPos + 10; // maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 50;
+				openShaftPos = closeShaftPos + 63;
 
 				maxOpenShaftPos = openShaftPos + 10;
 
@@ -967,6 +973,10 @@ static void TahoSync()
 		//{
 		//	fltDestShaftPos -= 1;
 		//};
+
+		fcurADC += (curADC - avrCurADC);
+		avrCurADC = fcurADC >> 8;
+
 	};
 }
 
