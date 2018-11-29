@@ -18,7 +18,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-static u16 verDevice = 0x101;
+static u16 verDevice = 0x102;
 
 //static u32 manCounter = 0;
 
@@ -317,17 +317,19 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[7];
+	static u16 rsp[9];
 
 	if (wb == 0 || len != 1) return false;
 
 	rsp[0] = manReqWord|0x20;	//	1.Ответное слово (принятая команда)
-	rsp[1] = closeShaftPos;		//	2.Давление (у.е)
-	rsp[2] = motorState;		//	3.Температура манометра (у.е)
+	rsp[1] = GetAP();			//	2.Давление (у.е)
+	rsp[2] = temp;				//	3.Температура манометра (у.е)
 	rsp[3] = GetAP() / 2;		//	4.Давление (0.01 МПа)
 	rsp[4] = temp;				//	5.Температура в приборе(гр)(short)
-	rsp[5] = GetShaftPos();		//	6.6.Положение вала двигателя (short у.е)
-	rsp[6] = GetCurrent();		//	7.7.Ток двигателя (мА)
+	rsp[5] = GetShaftPos();		//	6.Положение вала двигателя (short у.е)
+	rsp[6] = closeShaftPos;		//	7.Положение вала при закрытии(у.е)(short)
+	rsp[7] = GetCurrent();		//	8.Ток двигателя (мА)
+	rsp[8] = motorState;		//	9.Состояние двигателя
 
 	wb->data = rsp;
 	wb->len = sizeof(rsp);

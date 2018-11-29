@@ -454,6 +454,14 @@ namespace T_HW
 		LPC_REG DIRCLR0;                    /* 0x2400 */
 		LPC_REG z_RESERVED10[31];
 		LPC_REG DIRNOT0;                    /* 0x2480 */
+
+		void SET(u32 m) { SET0 = m; }
+		void CLR(u32 m) { CLR0 = m; }
+		void NOT(u32 m) { NOT0 = m; }
+		void WBIT(u32 m, bool c) { if (c) SET(m); else CLR(m); }
+		void BSET(byte b) { SET0 = 1 << b; }
+		void BCLR(byte b) { CLR0 = 1 << b; }
+		void BTGL(byte b) { NOT0 = 1 << b; }
 	};
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

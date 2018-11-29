@@ -9,8 +9,8 @@
 #define OPEN_VALVE_CUR 600
 #define CLOSE_VALVE_CUR 600
 
-u16 curHV = 0;
-u16 reqHV = 800;
+//u16 curHV = 0;
+//u16 reqHV = 800;
 u16 curADC = 0;
 u16 avrCurADC = 0;
 u32 fcurADC = 0;
@@ -144,6 +144,7 @@ i32 destShaftPos = 0;
 
 static i32 fltDestShaftPos = 0;
 
+static i32 curDutyOut = 0;
 static i32 pidOut = 0;
 static i32 curPidOut = 0;
 
@@ -151,7 +152,7 @@ static i32 maxOut = 0;
 static i32 limOut = 0;
 
 const u16 maxDuty = 400;
-u16 duty = 0, curd = 0;
+//u16 duty = 0, curd = 0;
 
 static i32 Kp = 1000000/*2000000*/, Ki = 2000/*4000*/, Kd = 500000;
 static i32 iKp = 200, iKi = 10, iKd = 100;
@@ -193,7 +194,53 @@ static i8 tachoEncoder[8][8] = {
 	{0,0,1,0,-1,0,0,0},
 	{0,0,0,0,0,0,0,0}
 };
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void EnableDriver() 
+{ 
+	HW::GPIO->SET((1<<14)|(1<<4)); 
+	HW::MRT->Channel[3].CTRL = 1;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void DisableDriver() 
+{ 
+	HW::GPIO->BCLR(14);
+	HW::MRT->Channel[3].CTRL = 0; 
+	pidOut = 0; 
+	curDutyOut = 0;
+}
 	
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static bool CheckDriverOn() 
+{ 
+	return HW::GPIO->B0[14] != 0; 
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static bool CheckDriverOff() 
+{ 
+	return HW::GPIO->B0[14] == 0; 
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline void EnableCapSwitch() 
+{ 
+	HW::GPIO->BSET(4); 
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline void DisableCapSwitch() 
+{ 
+	HW::GPIO->BCLR(4); 
+}
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static __irq void IntDummyHandler()
@@ -247,8 +294,8 @@ extern "C" void SystemInit()
 
 	SYSCON->SYSAHBCLKCTRL |= CLK::SWM_M | CLK::IOCON_M | CLK::GPIO_M | HW::CLK::MRT_M | HW::CLK::UART0_M | HW::CLK::CRC_M | HW::CLK::DMA_M;
 
-	GPIO->DIRSET0 = (1<<27)|(1<<14)|(1<<17)|(1<<18)|(1<<19)|(1<<20)|(1<<21)|(1<<22)|(1<<12);
-	GPIO->CLR0 = (1<<27)|(1<<14)|(1<<20)|(1<<21)|(1<<22);
+	GPIO->DIRSET0 = (1<<27)|(1<<14)|(1<<17)|(1<<18)|(1<<19)|(1<<20)|(1<<21)|(1<<22)|(1<<12)|(1<<4);
+	GPIO->CLR0 = (1<<27)|(1<<14)|(1<<20)|(1<<21)|(1<<22)|(1<<4);
 	GPIO->SET0 = (1<<17)|(1<<18)|(1<<19);
 
 	IOCON->PIO0_1.B.MODE = 0;
@@ -302,7 +349,6 @@ static i32 SetDutyCurrent(u16 cur)
 	//dword dt = t - pt;
 
 	static i32 e1 = 0, e2 = 0;
-	static i32 duty = 0;
 
 //	const i32 iKp = 1.0 * 65536, iKi = 0.02 * 65536, iKd = 10.0 * 65536;
 
@@ -314,22 +360,22 @@ static i32 SetDutyCurrent(u16 cur)
 
 		e = (i32)cur - (i32)curADC;
 
-		duty += iKp * (e - e1) + iKi * e + iKd * (e - e1 * 2  + e2);
+		curDutyOut += iKp * (e - e1) + iKi * e + iKd * (e - e1 * 2  + e2);
 
 		u32 t = 65536;
 
-		if (duty < 0) 
+		if (curDutyOut < 0) 
 		{
-			duty = 0;
+			curDutyOut = 0;
 		}
-		else if (duty > t)
+		else if (curDutyOut > t)
 		{
-			duty = t;
+			curDutyOut = t;
 		};
 
 		e2 = e1; e1 = e;
 
-		return duty;
+		return curDutyOut;
 	}
 	else
 	{
@@ -511,7 +557,7 @@ static void UpdateMotor()
 				tm2.Reset();
 				t = 100;
 
-//				SetDestShaftPos(closeShaftPos+20);
+				SetDestShaftPos(closeShaftPos+15);
 
 				DisableDriver();
 
@@ -530,20 +576,42 @@ static void UpdateMotor()
 
 		case 2: // Закрыт
 
-			if (tm2.Check(t))
+			if (tm.Check(500))
 			{
-				if (shaftPos > (closeShaftPos+30)) 
+				DisableDriver();
+
+				motorState = 0;
+			}
+			else if (tm2.Check(25))
+			{
+				EnableDriver();
+
+				if (shaftPos >= (destShaftPos-1)) 
 				{
-				//	closeShaftPos++;
-					SetDestShaftPos(closeShaftPos);
-					EnableDriver();
-					motorState = 1;
+					tm.Reset();
 				};
-				//else if (shaftPos <= (closeShaftPos+25))
-				//{
-				//	DisableDriver();
-				//	t = 100;
-				//}
+
+				/*if (CheckDriverOff())
+				{
+					if (shaftPos > (closeShaftPos+30)) 
+					{
+					//	closeShaftPos++;
+						SetDestShaftPos(closeShaftPos+23);
+						EnableDriver();
+					};
+
+					tm.Reset();
+				}
+				else
+				{
+					if (shaftPos <= (closeShaftPos+25))
+					{
+						DisableDriver();
+
+						tm.Reset();
+					};
+				};*/
+
 				//else if (avrCurADC > 150)
 				//{
 				//	DisableDriver();
@@ -553,8 +621,6 @@ static void UpdateMotor()
 			};
 
 			prevshaftPos = shaftPos;
-
-			tm.Reset();
 
 			break;
 
@@ -638,7 +704,7 @@ static void UpdateMotor()
 
 			if (tm.Check(100))
 			{
-				closeShaftPos = shaftPos + 10; // maxCloseShaftPos+15;
+				closeShaftPos = shaftPos + 15; // maxCloseShaftPos+15;
 
 				openShaftPos = closeShaftPos + 63;
 
@@ -687,6 +753,8 @@ static void UpdateMotor()
 
 			if (tm.Check(5000))
 			{
+				EnableDriver();
+
 				motorState = 5;
 			};
 
@@ -799,7 +867,7 @@ static void UpdateADC()
 	enum C { S = (__LINE__+3) };
 	switch(i++)
 	{
-//		CALL( fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;	curADC = fcurADC >> 1;	);
+		CALL(curADC = ((ADC->DAT0&0xFFF0) * 1800) >> 16; ); // CALL( fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;	curADC = fcurADC >> 1;	);
 		CALL( fvAP += (((ADC->DAT1&0xFFF0) * 3300) >> 16) - vAP; vAP = fvAP >> 3;	);
 	};
 
@@ -1056,7 +1124,7 @@ void InitHardware()
 	VectorTableExt[MRT_IRQ] = MRT_Handler;
 	CM0::NVIC->ICPR[0] = 1 << MRT_IRQ;
 	CM0::NVIC->ISER[0] = 1 << MRT_IRQ;
-	HW::MRT->Channel[3].CTRL = 1;
+	HW::MRT->Channel[3].CTRL = 0;
 	HW::MRT->Channel[3].INTVAL = (MCK/10000)|(1UL<<31);
 
 
