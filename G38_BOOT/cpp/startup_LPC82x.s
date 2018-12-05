@@ -46,6 +46,7 @@ __heap_base
 Heap_Mem        SPACE   Heap_Size
 __heap_limit
 
+;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++			
 
 
 VecTableIntSize	EQU		16*4	
@@ -57,13 +58,44 @@ VecTableExtSize	EQU		32*4
 VectorTableInt	SPACE	VecTableIntSize				
 VectorTableExt	SPACE	VecTableExtSize				
 
+;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++			
 
 DmaTableSize	EQU		16*18	
 
 				AREA	DMATBL, NOINIT, READWRITE, ALIGN=9
 	            EXPORT  DmaTable
 
-DmaTable		SPACE	DmaTableSize				
+DmaTable		SPACE	DmaTableSize	
+
+;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++			
+
+; <h> Code Read Protection
+;   <o> Code Read Protection  <0xFFFFFFFF=>CRP Disabled
+;                             <0x12345678=>CRP Level 1
+;                             <0x87654321=>CRP Level 2
+;                             <0x43218765=>CRP Level 3 (ARE YOU SURE?)
+;                             <0x4E697370=>NO ISP (ARE YOU SURE?)
+; </h>
+                IF      :LNOT::DEF:NO_CRP
+                AREA    |.ARM.__at_0x02FC|, CODE, READONLY
+                DCD     0xFFFFFFFF
+                ENDIF
+
+;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++			
+
+                AREA    |.text|, CODE, READONLY
+                
+_MainAppStart	PROC
+				EXPORT	_MainAppStart
+				
+				LDR		R1, [R0]
+				MOV		SP, R1
+				LDR		R0, [R0, #4]
+				BX		R0
+
+                ENDP
+
+;+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++			
 
                 PRESERVE8
                 THUMB
@@ -71,7 +103,7 @@ DmaTable		SPACE	DmaTableSize
 
 ; Vector Table Mapped to Address 0 at Reset
 
-                AREA    RESET, DATA, READONLY
+                AREA    RESET, CODE, READONLY
                 EXPORT  __Vectors
 
 __Vectors       DCD     __initial_sp              ; Top of Stack
@@ -125,19 +157,8 @@ __Vectors       DCD     __initial_sp              ; Top of Stack
                 DCD     PIN_INT6_IRQHandler       ; 16+30  PIO INT6
                 DCD     PIN_INT7_IRQHandler       ; 16+31  PIO INT7
 
-; <h> Code Read Protection
-;   <o> Code Read Protection  <0xFFFFFFFF=>CRP Disabled
-;                             <0x12345678=>CRP Level 1
-;                             <0x87654321=>CRP Level 2
-;                             <0x43218765=>CRP Level 3 (ARE YOU SURE?)
-;                             <0x4E697370=>NO ISP (ARE YOU SURE?)
-; </h>
-;                IF      :LNOT::DEF:NO_CRP
-;                AREA    |.ARM.__at_0x02FC|, CODE, READONLY
-;                DCD     0xFFFFFFFF
-;                ENDIF
 
-                AREA    |.text|, CODE, READONLY
+ ;               AREA    RESET, CODE, READONLY
 
 
 ; Reset Handler
@@ -151,7 +172,6 @@ Reset_Handler   PROC
                 LDR     R0, =__main
                 BX      R0
                 ENDP
-
 
 ; Dummy Exception Handlers (infinite loops which can be modified)
 
@@ -248,15 +268,16 @@ PIN_INT7_IRQHandler
 
 ; User Initial Stack & Heap
 
+                EXPORT  __initial_sp
+                
                 IF      :DEF:__MICROLIB
 
-                EXPORT  __initial_sp
                 EXPORT  __heap_base
                 EXPORT  __heap_limit
 
                 ELSE
 
-                IMPORT  __use_two_region_memory
+ ;               IMPORT  __use_two_region_memory
                 EXPORT  __user_initial_stackheap
 __user_initial_stackheap
 
