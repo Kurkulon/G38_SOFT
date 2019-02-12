@@ -9,6 +9,8 @@
 #define OPEN_VALVE_CUR 600
 #define CLOSE_VALVE_CUR 600
 
+#define LOCK_CLOSE_POSITION 0
+
 //u16 curHV = 0;
 //u16 reqHV = 800;
 u16 curADC = 0;
@@ -584,14 +586,17 @@ static void UpdateMotor()
 			}
 			else if (tm2.Check(25))
 			{
+
+		#if (LOCK_CLOSE_POSITION == 1)
+
 				EnableDriver();
 
 				if (shaftPos >= (destShaftPos-1)) 
 				{
 					tm.Reset();
 				};
-
-				/*if (CheckDriverOff())
+		#else
+				if (CheckDriverOff())
 				{
 					if (shaftPos > (closeShaftPos+30)) 
 					{
@@ -610,7 +615,7 @@ static void UpdateMotor()
 
 						tm.Reset();
 					};
-				};*/
+				};
 
 				//else if (avrCurADC > 150)
 				//{
@@ -618,6 +623,7 @@ static void UpdateMotor()
 
 				//	motorState = 0;
 				//};
+		#endif
 			};
 
 			prevshaftPos = shaftPos;
