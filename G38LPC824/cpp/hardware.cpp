@@ -1073,8 +1073,6 @@ static void InitTaho()
 	VectorTableExt[PIN_INT2_IRQ] = TahoHandler;
 	CM0::NVIC->ISER[0] = 7<<PIN_INT0_IRQ;
 
-	EnableDriver();
-
 	GPIO->SET0 = (0x3F<<17);
 
 	GPIO->MASK0 = ~(7 << 20);
