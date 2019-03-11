@@ -124,6 +124,12 @@ __Vectors       DCD     __initial_sp              ; Top of Stack
                 DCD     PIN_INT5_IRQHandler       ; 16+29  PIO INT5
                 DCD     PIN_INT6_IRQHandler       ; 16+30  PIO INT6
                 DCD     PIN_INT7_IRQHandler       ; 16+31  PIO INT7
+                
+                ALIGN	16
+                DCB		"\n", __PROGNAME__, "\n"
+                DCB		__DATE__, "\n"
+                DCB		__TIME__, "\n"
+                
 
 ; <h> Code Read Protection
 ;   <o> Code Read Protection  <0xFFFFFFFF=>CRP Disabled
