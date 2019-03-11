@@ -71,7 +71,7 @@ DmaTable		SPACE	DmaTableSize
 
 ; Vector Table Mapped to Address 0 at Reset
 
-                AREA    RESET, DATA, READONLY
+                AREA    RESET, DATA, READONLY, ALIGN=4
                 EXPORT  __Vectors
 
 __Vectors       DCD     __initial_sp              ; Top of Stack
