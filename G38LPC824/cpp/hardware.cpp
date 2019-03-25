@@ -10,6 +10,11 @@
 #define CLOSE_VALVE_CUR 600
 
 #define LOCK_CLOSE_POSITION 0
+#define DCL 40					// удержание в закрытом положении
+#define MAXCNT 50				// Компенсация датчиков Холла
+#define CLOSECURRENT 250		// Номинальный ток в closeShaftPos
+#define CLOSEDELTA 2			// 
+#define CFK 2					// 
 
 //u16 curHV = 0;
 //u16 reqHV = 800;
@@ -20,12 +25,22 @@ u16 vAP = 0;
 u32 fvAP = 0;
 u32 tachoCount = 0;
 i32 shaftPos = 0;
+u16 closeCurADC = 0;
+u16 errCloseCount = 0;
+u16 errOpenCount = 0;
 
-i32 closeShaftPos = 0;
+SHAFTPOS closeShaftPos;// = 0;
 static i32 openShaftPos = 0;
 static i32 deltaShaftPos = 0;
 static i32 maxCloseShaftPos = 0;
 static i32 maxOpenShaftPos = 0;
+
+static u32 cntHU = 0;
+static u32 cntHV = 0;
+static u32 cntHW = 0;
+
+static u32 hallDisMask = 0;
+static u32 hallForced = 0;
 
 byte motorState = 0;
 //static u32 reqTacho = 0;
@@ -133,13 +148,15 @@ bool dir = true;
 
 
 //                             1   2   3   4   5   6                1   2   3   4   5   6
-byte states[16] =		{ NC, WW, UU, WW, VV, VV, UU, NC,		NC, UU, VV, VV, WW, UU, WW, NC };
-byte LG_pin[16] =		{ NN, UL, VL, VL, WL, UL, WL, NN,		NN, WL, UL, WL, VL, VL, UL, NN };
-byte HG_pin[16] =		{ NN, UH, VH, VH, WH, UH, WH, NN,		NN, WH, UH, WH, VH, VH, UH, NN };
+byte states[16] =		{ WW, WW, UU, WW, VV, VV, UU, UU,		WW, UU, VV, VV, WW, UU, WW, VV };
+byte LG_pin[16] =		{ UL, UL, VL, VL, WL, UL, WL, VL,		VL, WL, UL, WL, VL, VL, UL, WL };
+byte HG_pin[16] =		{ UH, UH, VH, VH, WH, UH, WH, VH,		VH, WH, UH, WH, VH, VH, UH, WH };
 //byte states[16] =		{ NC, WW, UU, NC, VV, NC, NC, NC,		NC, NC, NC, NC, NC, NC, NC, NC };
 //byte LG_pin[16] =		{ NN, UL, VL, NN, WL, NN, NN, NN,		NN, NN, NN, NN, NN, NN, NN, NN };
 //byte HG_pin[16] =		{ NN, UH, VH, NN, WH, NN, NN, NN,		NN, NN, NN, NN, NN, NN, NN, NN };
 
+byte aaa[6] = { 1,3,2,6,4,5 }; 
+byte qqq[16] = {5, 3, 6, 2, 5, 1, 4, 3, 14, 13, 11, 9, 14, 12, 10, 9};
 
 i32 destShaftPos = 0;
 //u16 maxCurrent = 600;
@@ -480,11 +497,13 @@ static void PID_Update()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void OpenValve()
+void OpenValve(bool forced)
 {
-	if (motorState == 0 || motorState == 2)
+	if (motorState == 0 || motorState == 2 || forced)
 	{
 		EnableDriver();
+
+		openShaftPos = closeShaftPos + deltaShaftPos;
 
 		SetDestShaftPos(openShaftPos);
 
@@ -496,12 +515,14 @@ void OpenValve()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void CloseValve()
+void CloseValve(bool forced)
 {
-	if (/*motorState == 0 || */motorState == 4)
+	if (/*motorState == 0 || */motorState == 4 || forced)
 	{
 		EnableDriver();
 
+		if (hallDisMask != 0) { closeShaftPos -= 50; };
+		
 		SetDestShaftPos(closeShaftPos);
 
 		startCloseTime = GetMilliseconds();
@@ -512,12 +533,13 @@ void CloseValve()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static void UpdateMotor()
+static void UpdateMotorGood()
 {
 	//u32 tacho, t;
 	static TM32 tm, tm2;//, tm3;
 	static i32 prevshaftPos = 0;
 	static u32 t = 500;
+	static i32 cnt = 0;
 
 	switch (motorState)
 	{
@@ -535,31 +557,23 @@ static void UpdateMotor()
 
 			if (tm.Check(500))
 			{
-				closeShaftPos = shaftPos;
+				closeShaftPos.pos += 128;
+
+				errCloseCount += 1;
 
 				DisableDriver();
 
 				motorState = 0;
-
-//				t = 500;
 			}
-			else if (shaftPos <= closeShaftPos)
+			else if ((shaftPos - closeShaftPos) <= 3 && tm.Timeout(20)) // shaftPos <= closeShaftPos
 			{
-				if (curADC > 250) 
-				{
-					closeShaftPos += 2;
-				}
-				else
-				{
-					closeShaftPos -= 1;
-				};
+				closeCurADC = avrCurADC;
+
+				closeShaftPos.pos += ((i16)closeCurADC - CLOSECURRENT) * CFK >> 3; 
 				
-				openShaftPos = closeShaftPos + deltaShaftPos;
-
 				tm2.Reset();
-				t = 100;
 
-				SetDestShaftPos(closeShaftPos+15);
+//				SetDestShaftPos(closeShaftPos+15);
 
 				DisableDriver();
 
@@ -584,46 +598,40 @@ static void UpdateMotor()
 
 				motorState = 0;
 			}
-			else if (tm2.Check(25))
+			else if (tm2.Check(10))
 			{
-
-		#if (LOCK_CLOSE_POSITION == 1)
-
-				EnableDriver();
-
-				if (shaftPos >= (destShaftPos-1)) 
+				if (LOCK_CLOSE_POSITION == 1)
 				{
-					tm.Reset();
-				};
-		#else
-				if (CheckDriverOff())
-				{
-					if (shaftPos > (closeShaftPos+30)) 
+					EnableDriver();
+
+					if (shaftPos >= (destShaftPos-1)) 
 					{
-					//	closeShaftPos++;
-						SetDestShaftPos(closeShaftPos+23);
-						EnableDriver();
+						tm.Reset();
 					};
-
-					tm.Reset();
 				}
 				else
 				{
-					if (shaftPos <= (closeShaftPos+25))
+					if (CheckDriverOff())
 					{
-						DisableDriver();
+						if (shaftPos > (closeShaftPos+DCL)) 
+						{
+						//	closeShaftPos++;
+							SetDestShaftPos(closeShaftPos+DCL-2);
+							EnableDriver();
+						};
 
 						tm.Reset();
+					}
+					else
+					{
+						if (shaftPos <= (closeShaftPos+DCL-1))
+						{
+							DisableDriver();
+
+							tm.Reset();
+						};
 					};
 				};
-
-				//else if (avrCurADC > 150)
-				//{
-				//	DisableDriver();
-
-				//	motorState = 0;
-				//};
-		#endif
 			};
 
 			prevshaftPos = shaftPos;
@@ -634,15 +642,17 @@ static void UpdateMotor()
 
 			if (tm.Check(500))
 			{
+				closeShaftPos.pos -= 16;
+
+				errOpenCount += 1;
+
 				DisableDriver();
 
 				motorState++;
 			}
-			else if (shaftPos >= openShaftPos/* || tm.Check(100)*/)
+			else if (shaftPos >= openShaftPos)
 			{
 				SetDestShaftPos(openShaftPos);
-
-//				closeShaftPos = openShaftPos - deltaShaftPos;
 
 				tm2.Reset();
 				t = 100;
@@ -710,9 +720,9 @@ static void UpdateMotor()
 
 			if (tm.Check(100))
 			{
-				closeShaftPos = shaftPos + 15; // maxCloseShaftPos+15;
+				closeShaftPos = shaftPos + 10; // maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 63;
+				openShaftPos = closeShaftPos + 100;
 
 				maxOpenShaftPos = openShaftPos + 10;
 
@@ -726,6 +736,7 @@ static void UpdateMotor()
 				//t = 500;
 
 				motorState++;
+				//motorState = 11;
 			};
 
 			break;
@@ -734,11 +745,13 @@ static void UpdateMotor()
 
 			if (tm.Check(100))
 			{
-				EnableDriver();
+				//if (cntHU < 10) { hallDisMask |= 1; };
+				//if (cntHV < 10) { hallDisMask |= 2; };
+				//if (cntHW < 10) { hallDisMask |= 4; };
 
-				SetDestShaftPos(closeShaftPos);
+				if (hallDisMask != 0) { closeShaftPos -= 100; };
 
-				motorState = 1;
+				CloseValve(true);
 			}
 			else 
 			{
@@ -770,96 +783,223 @@ static void UpdateMotor()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-//static void UpdateMotor()
-//{
-//	u32 tacho, t;
+static void UpdateMotorFault()
+{
+	//u32 tacho, t;
+	static TM32 tm;//, tm2;//, tm3;
+	static u32 prevtacho = 0;
+	static u32 closetacho = 0;
+	static i32 prevshaftPos = 0;
+	//static u32 t = 500;
+	//static i32 cnt = 0;
+	static u32 prevHU = 0;
+	static u32 prevHV = 0;
+	static u32 prevHW = 0;
+
+	switch (motorState)
+	{
+		case 0:		// Idle;
+
+			DisableDriver();
+
+			prevtacho = tachoCount;
+			prevshaftPos = shaftPos;
+
+			tm.Reset();
+
+			break;
+
+		case 1: // Закрытие
+
+			if (tm.Check(200) || (tachoCount - closetacho) > 30)
+			{
+				closeValveTime = GetMilliseconds() - startCloseTime;
+				shaftPos = 0;
+
+				if (cntHU > 5) { hallDisMask &= 1; };
+				if (cntHV > 5) { hallDisMask &= 2; };
+				if (cntHW > 5) { hallDisMask &= 4; };
+
+				if (hallDisMask == 0)
+				{
+					EnableDriver();
+					motorState = 5;
+				}
+				else
+				{
+					DisableDriver();
+					motorState++;
+				};
+
+				cntHU = 0;
+				cntHV = 0; 
+				cntHW = 0; 
+			}
+			else if ((prevshaftPos - shaftPos) > 2)
+			{
+				SetDestShaftPos(shaftPos-100);
+
+				prevshaftPos = shaftPos;
+
+				tm.Reset();
+			};
+
+			break;
+
+		case 2: // Закрыт
+
+			tm.Reset();
+
+			prevshaftPos = shaftPos;
+			closetacho = prevtacho = tachoCount;
+
+			break;
+
+		case 3: // Открытие
+
+			if (tm.Check(200) || (tachoCount - closetacho) > 20)
+			{
+				DisableDriver();
+				openValveTime = GetMilliseconds() - startOpenTime;
+				shaftPos = 0;
+
+				motorState++;
+			}
+			else if ((shaftPos - prevshaftPos) > 2)
+			{
+				SetDestShaftPos(shaftPos+100);
+
+				prevshaftPos = shaftPos;
+
+				tm.Reset();
+			};
+
+			break;
+
+		case 4: // Открыт
+
+			closetacho = prevtacho = tachoCount;
+			prevshaftPos = shaftPos;
+
+			tm.Reset();
+
+			break;
+
+//		case 5:
 //
-//	switch (motorState)
-//	{
-//		case 0:		// Idle;
+//			maxOpenShaftPos = maxCloseShaftPos = shaftPos;
 //
-////			SetDutyPWM(SetDutyCurrent(0));
-////			PID_Update();
+//			SetDestShaftPos(shaftPos-2000);
+//
+//			tm.Reset();
+//
+//			motorState++;
+//
 //			break;
 //
-//		case 1:
+//		case 6:
 //
-//			t = GetMilliseconds() - startTime;
-//			tacho = tachoCount - startTacho;
-// 
-//			if (t >= reqTime 
-//				|| tacho >= reqTacho 
-//				|| lockTacho.Check(((tacho - prevTacho) == 0) && (t >= 20)) 
-//				/*|| lockCur.Check(((curADC > (limCur+minCur)) || (curADC > maxCur)) && (t >= 50))*/)
+//			if (tm.Check(500))
 //			{
-//				SetDutyPWM(0);
-//				motorState = 2;
-//				stopTime = GetMilliseconds();
-//				stopTacho.Check(false);
-//				prevTacho = tachoCount;
+//				maxCloseShaftPos = shaftPos = 0;
+//
+////				DisableDriver();
+//
+//				motorState++;
 //			}
-//			else
+//			else if (shaftPos < maxCloseShaftPos)
 //			{
-//				prevTacho = tacho;
-//
-//				
-//
-//				//duty = maxDuty;
-//
-//				//if (t <= 10)
-//				//{ 
-//				//	duty = t * maxDuty / 10; 
-//				//}
-//				//else if ((t >= 60) && (t < 100))
-//				//{
-//				//	duty = maxDuty;// - (t - 60) * maxDuty / 80; 
-//				//};
-//
-//				//if (curADC > limCur)
-//				//{
-//				//	t = (curADC - limCur) >> 4;
-//
-//				//	duty -= (t < duty) ? t : duty;
-//				//};
-//
-//				//if (t < 20)
-//				//{
-//				//	if (curADC > maxCur)
-//				//	{
-//				//		maxCur = curADC;
-//				//	};
-//				//}
-//				//else
-//				//{
-//				//	if (curADC < minCur)
-//				//	{
-//				//		minCur = curADC;
-//				//	};
-//				//};
-//
-//				//if (curADC > 200)
-//				//{
-//				//	curd = (curADC-200) * 1;
-//
-//				//	if (curd > duty) curd = duty;
-//
-//				//	duty -= curd;
-//				//}
-//
-//				SetDutyPWM(SetDutyCurrent(limCur));
+//				maxCloseShaftPos = shaftPos;
+//	
+//				tm.Reset();
+//			}
+//			else if ((prevshaftPos - shaftPos) > 2)
+//			{
+//				prevshaftPos = shaftPos;
+//				tm.Reset();
 //			};
 //
 //			break;
 //
-//		case 2:
+//		case 7:
 //
-//			LockShaftPos();
-//			motorState = 0;
+//			if (tm.Check(100))
+//			{
+//				closeShaftPos = shaftPos + 20; // maxCloseShaftPos+15;
+//
+//				openShaftPos = closeShaftPos + 65;
+//
+//				maxOpenShaftPos = openShaftPos + 10;
+//
+//				deltaShaftPos = openShaftPos - closeShaftPos;
+//							
+//				SetDestShaftPos(shaftPos);
+//
+//				DisableDriver();
+//
+//				//tm2.Reset();
+//				//t = 500;
+//
+//				motorState++;
+//				//motorState = 11;
+//			};
 //
 //			break;
-//	};
-//}
 //
+//		case 8:
+//
+//			if (tm.Check(100))
+//			{
+//				if (cntHU < 10) { hallDisMask |= 1; };
+//				if (cntHV < 10) { hallDisMask |= 2; };
+//				if (cntHW < 10) { hallDisMask |= 4; };
+//
+//				if (hallDisMask != 0) { closeShaftPos -= 100; };
+//
+//				CloseValve(true);
+//			}
+//			else 
+//			{
+//				SetDestShaftPos(shaftPos);
+//			};
+//
+//			break;
+//
+//		case 9:
+//
+//			tm.Reset();
+//
+//			motorState++;
+//
+//			break;
+//
+//		case 10:
+//
+//			if (tm.Check(5000))
+//			{
+//				EnableDriver();
+//
+//				motorState = 5;
+//			};
+//
+//			break;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateMotor()
+{
+	if (hallDisMask == 0)
+	{
+		UpdateMotorGood();
+	}
+	else
+	{
+		UpdateMotorFault();
+	};
+}
+
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void UpdateADC()
@@ -998,17 +1138,24 @@ static __irq void TahoHandler()
 
 	t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
 
-	s = states[t];
+//	if (hallDisMask == 0)
+	{
+		s = states[t];
 
-	HW::GPIO->MASK0 = ~(0x3F << 17);
-	HW::GPIO->MPIN0 = (u32)s << 17;
+		HW::GPIO->MASK0 = ~(0x3F << 17);
+		HW::GPIO->MPIN0 = (u32)s << 17;
 
-	HW::SWM->CTOUT_0 = LG_pin[t];
-	HW::SWM->CTOUT_1 = HG_pin[t];
+		HW::SWM->CTOUT_0 = LG_pin[t];
+		HW::SWM->CTOUT_1 = HG_pin[t];
+	};
 
 	shaftPos += tachoEncoder[t & 7][ist];
 
 	HW::PIN_INT->IENF = (~t) & 7;
+
+	cntHU += ist & 1;
+	cntHV += (ist>>1) & 1;
+	cntHW += ist>>2;
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1016,6 +1163,11 @@ static __irq void TahoHandler()
 static void TahoSync()
 {
 	static u16 pt = 0;
+	static u16 pt2 = 0;
+	static u32 prtacho = 0;
+	static u16 dt = 100;
+
+	static byte n = 0;
 
 	if ((u16)(GetMillisecondsLow() - pt) >= 1)
 	{
@@ -1025,32 +1177,53 @@ static void TahoSync()
 
 		HW::PIN_INT->IENF = (~(HW::GPIO->PIN0 >> 8)) & 7;
 		
-		//byte t = ((HW::GPIO->PIN0 >> 8) & 7 | (dir<<3)) & 0xF;
-
-		//byte s = states[t];
-
-		//HW::GPIO->MASK0 = ~(0x3F << 17);
-		//HW::GPIO->MPIN0 = (u32)s << 17;
-
-		//HW::SWM->CTOUT_0 = LG_pin[t];
-		//HW::SWM->CTOUT_1 = HG_pin[t];
-
 		__enable_irq();
 
 		HW::ResetWDT();
 
-		//if (destShaftPos > fltDestShaftPos)
-		//{
-		//	fltDestShaftPos += 1;
-		//}
-		//else if (destShaftPos < fltDestShaftPos)
-		//{
-		//	fltDestShaftPos -= 1;
-		//};
-
 		fcurADC += (curADC - avrCurADC);
-		avrCurADC = fcurADC >> 8;
+		avrCurADC = fcurADC >> 2;
 
+		if (hallDisMask != 0 && CheckDriverOn())
+		{
+			u16 ms = GetMillisecondsLow();
+
+			if (/*tachoCount != prtacho ||*/ (u16)(ms - pt2) >= 25)
+			{
+				//prtacho = tachoCount;
+
+				//dt = ms - pt2;
+				pt2 = ms;
+
+				//if (dt > 100) dt = 100;
+
+				byte xt = (aaa[n] | (dir<<3)) & 0xF;
+				//byte xt = (qqq[t] | (dir<<3)) & 0xF;
+
+				s = states[xt];
+
+				HW::GPIO->MASK0 = ~(0x3F << 17);
+				HW::GPIO->MPIN0 = (u32)s << 17;
+
+				HW::SWM->CTOUT_0 = LG_pin[xt];
+				HW::SWM->CTOUT_1 = HG_pin[xt];
+
+
+				if (dir)
+				{
+					if (n > 0) { n -= 1; } else { n = ArraySize(aaa) -1; };
+
+//					shaftPos += 1;
+
+				}
+				else
+				{
+					n += 1; if (n >= ArraySize(aaa)) { n = 0; };
+
+//					shaftPos -= 1;
+				}
+			};
+		};
 	};
 }
 
@@ -1191,7 +1364,7 @@ static void UpdateRsp30()
 	if (prState == 0 && motorState != prMtrSt && (motorState == 1 || motorState == 3))
 	{
 		rsp = &buf_rsp30[wrInd_rsp30];
-		n = 100;//ArraySize(rsp->data);
+		n = 200;//ArraySize(rsp->data);
 		i = 0;
 		prState = (rsp->rw == 0) ? motorState : 0;
 	};
@@ -1200,7 +1373,7 @@ static void UpdateRsp30()
 	{
 		if (tm.Check(2))
 		{
-			rsp->data[i++] = curADC;
+			rsp->data[i++] = avrCurADC;
 
 			n -= 1;
 
@@ -1525,7 +1698,7 @@ void UpdateHardware()
 		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
 		CALL( UpdateMotor() );
-		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
+		//CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
 		CALL( UpdateRsp30()	);
 	};
 

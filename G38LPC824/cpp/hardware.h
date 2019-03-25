@@ -8,6 +8,20 @@
 #include <windows.h>
 #endif
 
+struct SHAFTPOS
+{
+	i32 pos;
+
+	SHAFTPOS() : pos(0) {}
+//	SHAFTPOS(i32 v) : pos(v) {}
+
+	operator i32() { return pos >> 8; }
+	i32 operator=(i32 v) { pos = v<<8; return v; }
+	i32 operator+=(i32 v) { return (pos += v<<8)>>8; }
+	i32 operator-=(i32 v) { return (pos -= v<<8)>>8; }
+
+};
+
 struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; };
 
 extern void InitHardware();
@@ -25,12 +39,12 @@ extern void SetDutyPWMDir(i32 v);
 
 extern void SetDutyPWM(u16 v);
 
-extern void OpenValve();
-extern void CloseValve();
+extern void OpenValve(bool forced = false);
+extern void CloseValve(bool forced = false);
 extern Rsp30* GetRsp30();
 
 extern byte motorState;
-extern i32 closeShaftPos;
+extern SHAFTPOS closeShaftPos;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
