@@ -10,7 +10,7 @@
 #define CLOSE_VALVE_CUR 600
 
 #define LOCK_CLOSE_POSITION 0
-#define DCL 40					// удержание в закрытом положении
+#define DCL 30					// удержание в закрытом положении
 #define MAXCNT 50				// Компенсация датчиков Холла
 #define CLOSECURRENT 250		// Номинальный ток в closeShaftPos
 #define CLOSEDELTA 2			// 
@@ -565,7 +565,7 @@ static void UpdateMotorGood()
 
 				motorState = 0;
 			}
-			else if ((shaftPos - closeShaftPos) <= 3 && tm.Timeout(20)) // shaftPos <= closeShaftPos
+			else if ((shaftPos - closeShaftPos) <= 10 && tm.Timeout(50)) // shaftPos <= closeShaftPos
 			{
 				closeCurADC = avrCurADC;
 
@@ -581,7 +581,7 @@ static void UpdateMotorGood()
 
 				motorState++;
 			}
-			else if ((prevshaftPos - shaftPos) > 2/* || (curADC < 400)*/)
+			else if ((prevshaftPos - shaftPos) > 0/* || (curADC < 400)*/)
 			{
 				prevshaftPos = shaftPos;
 
@@ -720,7 +720,7 @@ static void UpdateMotorGood()
 
 			if (tm.Check(100))
 			{
-				closeShaftPos = shaftPos + 10; // maxCloseShaftPos+15;
+				closeShaftPos = shaftPos + 20; // maxCloseShaftPos+15;
 
 				openShaftPos = closeShaftPos + 100;
 
