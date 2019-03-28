@@ -14,7 +14,7 @@
 #define MAXCNT 50				// Компенсация датчиков Холла
 #define CLOSECURRENT 250		// Номинальный ток в closeShaftPos
 #define CLOSEDELTA 2			// 
-#define CFK 2					// 
+#define CFK 1					// 
 
 //u16 curHV = 0;
 //u16 reqHV = 800;
@@ -682,6 +682,8 @@ static void UpdateMotorGood()
 
 		case 5:
 
+			EnableDriver();
+
 			maxOpenShaftPos = maxCloseShaftPos = shaftPos;
 
 			SetDestShaftPos(shaftPos-2000);
@@ -772,8 +774,6 @@ static void UpdateMotorGood()
 
 			if (tm.Check(5000))
 			{
-				EnableDriver();
-
 				motorState = 5;
 			};
 
@@ -990,14 +990,14 @@ static void UpdateMotorFault()
 
 static void UpdateMotor()
 {
-	if (hallDisMask == 0)
-	{
+	//if (hallDisMask == 0)
+	//{
 		UpdateMotorGood();
-	}
-	else
-	{
-		UpdateMotorFault();
-	};
+	//}
+	//else
+	//{
+	//	UpdateMotorFault();
+	//};
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

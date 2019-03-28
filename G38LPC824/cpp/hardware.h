@@ -177,11 +177,21 @@ inline bool CalibrateShaftPos()
 
 	if (IsMotorIdle())
 	{
-		motorState = 9;
+		motorState = 5;
 		return true;
 	};
 
 	return false;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline bool InitShaftPos()
+{
+	extern byte motorState;
+
+	motorState = 9;
+	return true;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

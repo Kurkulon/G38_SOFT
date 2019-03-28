@@ -19,7 +19,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-static u16 verDevice = 0x102;
+static u16 verDevice = 0x103;
 
 //static u32 manCounter = 0;
 
@@ -368,6 +368,24 @@ static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static bool RequestMan_40(u16 *data, u16 len, ComPort::WriteBuffer *wb)
+{
+//	static u16 rsp[1];
+
+	if (wb == 0 || len != 1) return false;
+
+	CalibrateShaftPos();
+
+	data[0] = manReqWord|0x40;	// 	1. ответное слово
+
+	wb->data = data;			 
+	wb->len = 2;	 
+
+	return true;
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	if (wb == 0 || len != 1) return false;
@@ -375,7 +393,7 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	cal[0] = manReqWord|0x70;	// 	1. ответное слово
 
 	wb->data = &cal;
-	wb->len = sizeof(cal);
+	wb->len = 129*2;//sizeof(cal);
 
 	return true;
 }
@@ -433,9 +451,11 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	if (wb == 0 || len < 129) return false;
 
+	u16 *p = cal+1;
+
 	for (byte i = 0; i < 128; i++)
 	{
-		cal[i] = data[i];
+		*(p++) = data[i];
 	};
 
 	saveCal = true;
@@ -491,6 +511,7 @@ static bool RequestMan(ComPort::WriteBuffer *wb, ComPort::ReadBuffer *rb)
 		case 1: 	r = RequestMan_10(p, len, wb); break;
 		case 2: 	r = RequestMan_20(p, len, wb); break;
 		case 3: 	r = RequestMan_30(p, len, wb); break;
+		case 4: 	r = RequestMan_40(p, len, wb); break;
 		case 7: 	r = RequestMan_70(p, len, wb); break;
 		case 8: 	r = RequestMan_80(p, len, wb); break;
 		case 9:		r = RequestMan_90(p, len, wb); break;
@@ -822,7 +843,7 @@ int main()
 	//	UpdateHardware();
 	//};
 
-	CalibrateShaftPos();
+	InitShaftPos();
 
 	while (1)
 	{
