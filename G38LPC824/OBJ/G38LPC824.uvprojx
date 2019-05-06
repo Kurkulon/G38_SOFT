@@ -10,13 +10,12 @@
       <TargetName>Target 1</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
           <Device>LPC824M201JHI33</Device>
           <Vendor>NXP</Vendor>
-          <PackID>NXP.LPC824_DFP.10.0.3</PackID>
-          <PackURL>http://mcuxpresso.nxp.com/cmsis_pack/repo/</PackURL>
+          <PackID>Keil.LPC800_DFP.1.1.0</PackID>
+          <PackURL>http://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x10000000,0x2000) IROM(0x00000000,0x8000) CPUTYPE("Cortex-M0+") CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
           <StartupFile></StartupFile>
