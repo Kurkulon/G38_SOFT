@@ -29,6 +29,11 @@ u16 closeCurADC = 0;
 u16 errCloseCount = 0;
 u16 errOpenCount = 0;
 
+static u16 tachoTimeStamp = 0;
+static u16 tachoDT = 0;
+static const u16 dutyRPM[16] = { 100, 400, 400, 350, 200, 250, 200, 150, 100, 100, 100, 100, 100, 100, 100, 100 };
+static u16 speed = 0;
+
 SHAFTPOS closeShaftPos;// = 0;
 static i32 openShaftPos = 0;
 static i32 deltaShaftPos = 0;
@@ -99,6 +104,9 @@ static void InitRsp30();
 #define WW 0x1F
 #define NC 0x3F
 
+#define UT 0x3E
+#define VT 0x3D
+#define WT 0x3B
 
 // D	HHH	WVUWVU  
 // R	WVU	LLLHHH 
@@ -148,15 +156,16 @@ bool dir = true;
 
 
 //                             1   2   3   4   5   6                1   2   3   4   5   6
-byte states[16] =		{ WW, WW, UU, WW, VV, VV, UU, UU,		WW, UU, VV, VV, WW, UU, WW, VV };
-byte LG_pin[16] =		{ UL, UL, VL, VL, WL, UL, WL, VL,		VL, WL, UL, WL, VL, VL, UL, WL };
-byte HG_pin[16] =		{ UH, UH, VH, VH, WH, UH, WH, VH,		VH, WH, UH, WH, VH, VH, UH, WH };
-//byte states[16] =		{ NC, WW, UU, NC, VV, NC, NC, NC,		NC, NC, NC, NC, NC, NC, NC, NC };
+const byte states[16] =		{ WW, WW, UU, WW, VV, VV, UU, UU,		WW, UU, VV, VV, WW, UU, WW, VV };
+//const byte statesH[16] =	{ UT, UT, VT, VT, WT, UT, WT, VT,		VT, WT, UT, WT, VT, VT, UT, WT };
+const byte LG_pin[16] =		{ UL, UL, VL, VL, WL, UL, WL, VL,		VL, WL, UL, WL, VL, VL, UL, WL };
+const byte HG_pin[16] =		{ UH, UH, VH, VH, WH, UH, WH, VH,		VH, WH, UH, WH, VH, VH, UH, WH };
+//byte states[16] =		{ NC, WW, UU, NC, VV, NC, NC, NC,		NC, NC, NC, NC, NC, NC, NC, NC }; 
 //byte LG_pin[16] =		{ NN, UL, VL, NN, WL, NN, NN, NN,		NN, NN, NN, NN, NN, NN, NN, NN };
 //byte HG_pin[16] =		{ NN, UH, VH, NN, WH, NN, NN, NN,		NN, NN, NN, NN, NN, NN, NN, NN };
 
-byte aaa[6] = { 1,3,2,6,4,5 }; 
-byte qqq[16] = {5, 3, 6, 2, 5, 1, 4, 3, 14, 13, 11, 9, 14, 12, 10, 9};
+const byte aaa[6] = { 1,3,2,6,4,5 }; 
+const byte qqq[16] = {5, 3, 6, 2, 5, 1, 4, 3, 14, 13, 11, 9, 14, 12, 10, 9};
 
 i32 destShaftPos = 0;
 //u16 maxCurrent = 600;
@@ -170,11 +179,13 @@ static i32 curPidOut = 0;
 static i32 maxOut = 0;
 static i32 limOut = 0;
 
+const u16 _minDuty = 100;//400;
+const u16 _maxDuty = 350;//400;
 const u16 maxDuty = 400;
 //u16 duty = 0, curd = 0;
 
 static i32 Kp = 1000000/*2000000*/, Ki = 2000/*4000*/, Kd = 500000;
-static i32 iKp = 200, iKi = 10, iKd = 100;
+static i32 iKp = 2000, iKi = 1000, iKd = 0;
 
 static u32 startOpenTime = 0;
 static u32 startCloseTime = 0;
@@ -229,7 +240,7 @@ static void DisableDriver()
 	HW::GPIO->BCLR(14);
 	HW::MRT->Channel[3].CTRL = 0; 
 	pidOut = 0; 
-	curDutyOut = 0;
+	//curDutyOut = 0;
 }
 	
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -381,20 +392,21 @@ static i32 SetDutyCurrent(u16 cur)
 
 		curDutyOut += iKp * (e - e1) + iKi * e + iKd * (e - e1 * 2  + e2);
 
-		u32 t = 65536;
+		i32 max = 65535*256;
+		i32 min = 16384*256;
 
-		if (curDutyOut < 0) 
+		if (curDutyOut < min) 
 		{
-			curDutyOut = 0;
+			curDutyOut = min;
 		}
-		else if (curDutyOut > t)
+		else if (curDutyOut > max)
 		{
-			curDutyOut = t;
+			curDutyOut = max;
 		};
 
 		e2 = e1; e1 = e;
 
-		return curDutyOut;
+		return curDutyOut/256;
 	}
 	else
 	{
@@ -418,13 +430,13 @@ static void PID_Update()
 
 //	const i32 Kp = 10.0 * 65536, Ki = 0.01 * 65536, Kd = 0.0 * 65536;
 
-	i32 e;
+	i32 e;// = fltDestShaftPos/32;
 
-	//if (destShaftPos > fltDestShaftPos)
+	//if (destShaftPos > e)
 	//{
 	//	fltDestShaftPos += 1;
 	//}
-	//else if (destShaftPos < fltDestShaftPos)
+	//else if (destShaftPos < e)
 	//{
 	//	fltDestShaftPos -= 1;
 	//};
@@ -436,6 +448,8 @@ static void PID_Update()
 	//float kid = Ki * 1000 / dt;
 
 	pidOut += Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2);
+
+	//if (curADC > 600 && maxDuty > _minDuty) { maxDuty -= 5; };
 
 	i32	maxOut = (i32)maxDuty * 65536;
 	
@@ -451,8 +465,20 @@ static void PID_Update()
 	i32 po = pidOut/65536;
 	
 	po *= SetDutyCurrent(600);
+	po /= 65536;
 
-	SetDutyPWMDir(curPidOut = po/65536);
+	//po = 0;
+
+	//if (destShaftPos > shaftPos)
+	//{
+	//	po = 400;
+	//}
+	//else if (destShaftPos < shaftPos)
+	//{
+	//	po = -400;
+	//};
+
+	SetDutyPWMDir(curPidOut = po);
 
 	e2 = e1; e1 = e;
 }
@@ -650,14 +676,14 @@ static void UpdateMotorGood()
 
 				motorState++;
 			}
-			else if (shaftPos >= openShaftPos)
+			else if ((openShaftPos - shaftPos) <= 10/* && tm.Timeout(50)*/)
 			{
-				SetDestShaftPos(openShaftPos);
+				//SetDestShaftPos(openShaftPos);
 
 				tm2.Reset();
 				t = 100;
 
-//				DisableDriver();
+				DisableDriver();
 
 				openValveTime = GetMilliseconds() - startOpenTime;
 
@@ -673,6 +699,27 @@ static void UpdateMotorGood()
 			break;
 
 		case 4: // Открыт
+
+			if (CheckDriverOff())
+			{
+				if (shaftPos < (openShaftPos-10)) 
+				{
+				//	closeShaftPos++;
+					SetDestShaftPos(openShaftPos);
+					EnableDriver();
+				};
+
+				tm.Reset();
+			}
+			else
+			{
+				if (shaftPos >= (openShaftPos-5))
+				{
+					DisableDriver();
+
+					tm.Reset();
+				};
+			};
 
 			prevshaftPos = shaftPos;
 
@@ -724,7 +771,7 @@ static void UpdateMotorGood()
 			{
 				closeShaftPos = shaftPos + 20; // maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 100;
+				openShaftPos = closeShaftPos + 60;
 
 				maxOpenShaftPos = openShaftPos + 10;
 
@@ -1013,7 +1060,7 @@ static void UpdateADC()
 	enum C { S = (__LINE__+3) };
 	switch(i++)
 	{
-		CALL(curADC = ((ADC->DAT0&0xFFF0) * 1800) >> 16; ); // CALL( fcurADC += (((ADC->DAT0&0xFFF0) * 1800 ) >> 16) - curADC;	curADC = fcurADC >> 1;	);
+		CALL( curADC = ((ADC->DAT0&0xFFF0) * 1800 ) >> 16;  fcurADC += curADC - avrCurADC; avrCurADC = fcurADC >> 6;	);
 		CALL( fvAP += (((ADC->DAT1&0xFFF0) * 3300) >> 16) - vAP; vAP = fvAP >> 3;	);
 	};
 
@@ -1156,6 +1203,18 @@ static __irq void TahoHandler()
 	cntHU += ist & 1;
 	cntHV += (ist>>1) & 1;
 	cntHW += ist>>2;
+
+	//u16 tm = GetMillisecondsLow();
+	//tachoDT = tm - tachoTimeStamp;
+	//tachoTimeStamp = tm;
+
+	//speed += 10;
+
+	//if (speed > 50000)	{ speed = 50000; };
+
+	//curADC = ((HW::ADC->DAT0&0xFFF0) * 1800) >> 16;
+
+	//PID_Update();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1173,6 +1232,15 @@ static void TahoSync()
 	{
 		pt = GetMillisecondsLow();
 
+		//if (speed > 0) { speed -= 1; };
+
+		//u16 x = tachoDT;
+		//x >>= 1;
+
+		//if ((pt - tachoTimeStamp) > 100 || x >= ArraySize(dutyRPM)) { x = ArraySize(dutyRPM)-1; };
+
+		//maxDuty = dutyRPM[x];
+
 		__disable_irq();
 
 		HW::PIN_INT->IENF = (~(HW::GPIO->PIN0 >> 8)) & 7;
@@ -1180,9 +1248,6 @@ static void TahoSync()
 		__enable_irq();
 
 		HW::ResetWDT();
-
-		fcurADC += (curADC - avrCurADC);
-		avrCurADC = fcurADC >> 2;
 
 		if (hallDisMask != 0 && CheckDriverOn())
 		{
@@ -1695,7 +1760,6 @@ void UpdateHardware()
 	enum C { S = (__LINE__+3) };
 	switch(i++)
 	{
-		CALL( UpdateADC()	);
 		CALL( TahoSync()	);
 		CALL( UpdateMotor() );
 		CALL( if (db.Check(HW::GPIO->B0[15] != 0)) OpenValve(); else CloseValve(); );
@@ -1703,6 +1767,8 @@ void UpdateHardware()
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;
+
+	UpdateADC();
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
