@@ -10,7 +10,7 @@
 #define CLOSE_VALVE_CUR 600
 
 #define LOCK_CLOSE_POSITION 0
-#define DCL 30					// удержание в закрытом положении
+//#define DCL 30					// удержание в закрытом положении
 #define MAXCNT 50				// Компенсация датчиков Холла
 #define CLOSECURRENT 250		// Номинальный ток в closeShaftPos
 #define CLOSEDELTA 2			// 
@@ -28,6 +28,7 @@ i32 shaftPos = 0;
 u16 closeCurADC = 0;
 u16 errCloseCount = 0;
 u16 errOpenCount = 0;
+u16 DCL = 30;					// удержание в закрытом положении
 
 static u16 tachoTimeStamp = 0;
 static u16 tachoDT = 0;
@@ -191,7 +192,7 @@ static u32 startOpenTime = 0;
 static u32 startCloseTime = 0;
 static u32 openValveTime = 0;
 static u32 closeValveTime = 0;
-
+static i8 tachoDir = 1;
 
 
 
@@ -742,7 +743,7 @@ static void UpdateMotorGood()
 			break;
 
 		case 6:
-
+ 
 			if (tm.Check(500))
 			{
 				maxCloseShaftPos = shaftPos = 0;
@@ -761,6 +762,12 @@ static void UpdateMotorGood()
 			{
 				prevshaftPos = shaftPos;
 				tm.Reset();
+			}
+			else if (tm.Timeout(50) && ((shaftPos - prevshaftPos) > 10))
+			{
+				tachoDir = -tachoDir; // Двигатель FAULHABER 2250 024 BX4
+				DCL *= 2;
+				tm.Reset();
 			};
 
 			break;
@@ -769,11 +776,13 @@ static void UpdateMotorGood()
 
 			if (tm.Check(100))
 			{
-				closeShaftPos = shaftPos + 20; // maxCloseShaftPos+15;
+				i16 m = (tachoDir < 0) ? 2 : 1;
 
-				openShaftPos = closeShaftPos + 60;
+				closeShaftPos = shaftPos + 20*m; // maxCloseShaftPos+15;
 
-				maxOpenShaftPos = openShaftPos + 10;
+				openShaftPos = closeShaftPos + 60*m;
+
+				maxOpenShaftPos = openShaftPos + 10*m;
 
 				deltaShaftPos = openShaftPos - closeShaftPos;
 							
@@ -1196,7 +1205,7 @@ static __irq void TahoHandler()
 		HW::SWM->CTOUT_1 = HG_pin[t];
 	};
 
-	shaftPos += tachoEncoder[t & 7][ist];
+	shaftPos += tachoEncoder[t & 7][ist] * tachoDir;
 
 	HW::PIN_INT->IENF = (~t) & 7;
 
