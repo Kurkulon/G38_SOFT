@@ -10,17 +10,19 @@
 //#define CLOSE_VALVE_CUR 600
 
 #define LOCK_CLOSE_POSITION 0
-#define INIT_CLOSE_POSITION 20
+#define INIT_CLOSE_POSITION 55
+#define OPEN_POSITION		60
 #define CUR_CAL_MAXON		600
 #define CUR_CAL_FAULHABER	300
 
 #define CUR_LIM_MAXON		600
 #define CUR_LIM_FAULHABER	600
-u16 DCL = 50;					// удержание в закрытом положении
 #define MAXCNT 50				// Компенсация датчиков Холла
 #define CLOSECURRENT 200		// Номинальный ток в closeShaftPos
 #define CLOSEDELTA 2			// 
-#define CFK 16					// 
+#define CFK 256					// 
+static u16 CSD = 5;					// 
+static u16 DCL = CSD+3;				// удержание в закрытом положении
 
 //u16 curHV = 0;
 //u16 reqHV = 800;
@@ -44,7 +46,7 @@ SHAFTPOS closeShaftPos;// = 0;
 static i32 openShaftPos = 0;
 static i32 deltaShaftPos = 0;
 static i32 maxCloseShaftPos = 0;
-static i32 maxOpenShaftPos = 0;
+//static i32 maxOpenShaftPos = 0;
 
 static u32 cntHU = 0;
 static u32 cntHV = 0;
@@ -539,6 +541,8 @@ void OpenValve(bool forced)
 	{
 		curLim = (tachoDir < 0) ? CUR_LIM_FAULHABER : CUR_LIM_MAXON;
 
+		closeShaftPos.pos += (((shaftPos - closeShaftPos) - CSD) * CFK) >> 3; 
+
 		EnableDriver();
 
 		openShaftPos = closeShaftPos + deltaShaftPos;
@@ -561,9 +565,9 @@ void CloseValve(bool forced)
 
 		EnableDriver();
 
-		if (hallDisMask != 0) { closeShaftPos -= 50; };
+//		if (hallDisMask != 0) { closeShaftPos -= 50; };
 		
-		SetDestShaftPos(closeShaftPos-20);
+		SetDestShaftPos(closeShaftPos-1);
 
 		startCloseTime = GetMilliseconds();
 
@@ -605,13 +609,9 @@ static void UpdateMotorGood()
 
 				motorState = 0;
 			}
-			else if ((shaftPos - closeShaftPos) <= 10 && tm.Timeout(10))
+			else if ((shaftPos - closeShaftPos) <= (CSD/2) && tm.Timeout(20) || shaftPos <= closeShaftPos)
 			{
-//				closeCurADC = avrCurADC;
-
-//				closeShaftPos.pos += (((i16)closeCurADC - CLOSECURRENT) * CFK) >> 3; 
-
-				closeShaftPos.pos += ((shaftPos - closeShaftPos) * CFK) >> 3; 
+//				closeShaftPos.pos += ((shaftPos - closeShaftPos) * CFK) >> 3; 
 				
 				tm2.Reset();
 
@@ -622,10 +622,6 @@ static void UpdateMotorGood()
 				closeValveTime = GetMilliseconds() - startCloseTime;
 
 				motorState++;
-			}
-			else if (shaftPos < closeShaftPos)
-			{
-				curLim = curCal;
 			};
 
 			if ((prevshaftPos - shaftPos) > 0/* || (curADC < 400)*/)
@@ -723,9 +719,8 @@ static void UpdateMotorGood()
 
 			if (CheckDriverOff())
 			{
-				if (shaftPos < (openShaftPos-10)) 
+				if (shaftPos < (openShaftPos-10) || shaftPos > (openShaftPos+10)) 
 				{
-				//	closeShaftPos++;
 					SetDestShaftPos(openShaftPos);
 					EnableDriver();
 				};
@@ -734,7 +729,7 @@ static void UpdateMotorGood()
 			}
 			else
 			{
-				if (shaftPos >= (openShaftPos-5))
+				if (shaftPos >= (openShaftPos-5) && shaftPos <= (openShaftPos+5))
 				{
 					DisableDriver();
 
@@ -754,7 +749,7 @@ static void UpdateMotorGood()
 
 			EnableDriver();
 
-			maxOpenShaftPos = maxCloseShaftPos = shaftPos;
+			maxCloseShaftPos = shaftPos;
 
 			SetDestShaftPos(shaftPos-2000);
 
@@ -788,6 +783,7 @@ static void UpdateMotorGood()
 			else if (tm.Timeout(50) && ((shaftPos - prevshaftPos) > 10))
 			{
 				tachoDir = -tachoDir; // Двигатель FAULHABER 2250 024 BX4
+				CSD *= 2;
 				DCL *= 2;
 				Kp /= 2;
 				Ki /= 2;
@@ -805,9 +801,9 @@ static void UpdateMotorGood()
 
 				closeShaftPos = shaftPos + INIT_CLOSE_POSITION*m; // maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 80*m;
+				openShaftPos = closeShaftPos + OPEN_POSITION*m;
 
-				maxOpenShaftPos = openShaftPos + 10*m;
+//				maxOpenShaftPos = openShaftPos + 10*m;
 
 				deltaShaftPos = openShaftPos - closeShaftPos;
 							
