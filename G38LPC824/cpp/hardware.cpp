@@ -6,15 +6,21 @@
 
 #include "ComPort.h"
 
-#define OPEN_VALVE_CUR 600
-#define CLOSE_VALVE_CUR 600
+//#define OPEN_VALVE_CUR 600
+//#define CLOSE_VALVE_CUR 600
 
 #define LOCK_CLOSE_POSITION 0
-//#define DCL 30					// удержание в закрытом положении
+#define INIT_CLOSE_POSITION 20
+#define CUR_CAL_MAXON		600
+#define CUR_CAL_FAULHABER	300
+
+#define CUR_LIM_MAXON		600
+#define CUR_LIM_FAULHABER	600
+u16 DCL = 50;					// удержание в закрытом положении
 #define MAXCNT 50				// Компенсация датчиков Холла
-#define CLOSECURRENT 250		// Номинальный ток в closeShaftPos
+#define CLOSECURRENT 200		// Номинальный ток в closeShaftPos
 #define CLOSEDELTA 2			// 
-#define CFK 1					// 
+#define CFK 16					// 
 
 //u16 curHV = 0;
 //u16 reqHV = 800;
@@ -28,7 +34,6 @@ i32 shaftPos = 0;
 u16 closeCurADC = 0;
 u16 errCloseCount = 0;
 u16 errOpenCount = 0;
-u16 DCL = 30;					// удержание в закрытом положении
 
 static u16 tachoTimeStamp = 0;
 static u16 tachoDT = 0;
@@ -173,9 +178,13 @@ i32 destShaftPos = 0;
 
 static i32 fltDestShaftPos = 0;
 
+
+
 static i32 curDutyOut = 0;
 static i32 pidOut = 0;
 static i32 curPidOut = 0;
+static u16 curLim = CUR_LIM_MAXON;
+static u16 curCal = CUR_CAL_MAXON;
 
 static i32 maxOut = 0;
 static i32 limOut = 0;
@@ -465,7 +474,7 @@ static void PID_Update()
 
 	i32 po = pidOut/65536;
 	
-	po *= SetDutyCurrent(600);
+	po *= SetDutyCurrent(curLim);
 	po /= 65536;
 
 	//po = 0;
@@ -528,6 +537,8 @@ void OpenValve(bool forced)
 {
 	if (motorState == 0 || motorState == 2 || forced)
 	{
+		curLim = (tachoDir < 0) ? CUR_LIM_FAULHABER : CUR_LIM_MAXON;
+
 		EnableDriver();
 
 		openShaftPos = closeShaftPos + deltaShaftPos;
@@ -546,11 +557,13 @@ void CloseValve(bool forced)
 {
 	if (/*motorState == 0 || */motorState == 4 || forced)
 	{
+		curLim = (tachoDir < 0) ? CUR_LIM_FAULHABER : CUR_LIM_MAXON;
+
 		EnableDriver();
 
 		if (hallDisMask != 0) { closeShaftPos -= 50; };
 		
-		SetDestShaftPos(closeShaftPos);
+		SetDestShaftPos(closeShaftPos-20);
 
 		startCloseTime = GetMilliseconds();
 
@@ -592,11 +605,13 @@ static void UpdateMotorGood()
 
 				motorState = 0;
 			}
-			else if ((shaftPos - closeShaftPos) <= 10 && tm.Timeout(50)) // shaftPos <= closeShaftPos
+			else if ((shaftPos - closeShaftPos) <= 10 && tm.Timeout(10))
 			{
-				closeCurADC = avrCurADC;
+//				closeCurADC = avrCurADC;
 
-				closeShaftPos.pos += ((i16)closeCurADC - CLOSECURRENT) * CFK >> 3; 
+//				closeShaftPos.pos += (((i16)closeCurADC - CLOSECURRENT) * CFK) >> 3; 
+
+				closeShaftPos.pos += ((shaftPos - closeShaftPos) * CFK) >> 3; 
 				
 				tm2.Reset();
 
@@ -608,7 +623,12 @@ static void UpdateMotorGood()
 
 				motorState++;
 			}
-			else if ((prevshaftPos - shaftPos) > 0/* || (curADC < 400)*/)
+			else if (shaftPos < closeShaftPos)
+			{
+				curLim = curCal;
+			};
+
+			if ((prevshaftPos - shaftPos) > 0/* || (curADC < 400)*/)
 			{
 				prevshaftPos = shaftPos;
 
@@ -677,7 +697,7 @@ static void UpdateMotorGood()
 
 				motorState++;
 			}
-			else if ((openShaftPos - shaftPos) <= 10/* && tm.Timeout(50)*/)
+			else if ((openShaftPos - shaftPos) <= 1/* && tm.Timeout(50)*/)
 			{
 				//SetDestShaftPos(openShaftPos);
 
@@ -730,6 +750,8 @@ static void UpdateMotorGood()
 
 		case 5:
 
+			curCal = curLim = (tachoDir < 0) ? CUR_CAL_FAULHABER : CUR_CAL_MAXON;
+
 			EnableDriver();
 
 			maxOpenShaftPos = maxCloseShaftPos = shaftPos;
@@ -744,7 +766,7 @@ static void UpdateMotorGood()
 
 		case 6:
  
-			if (tm.Check(500))
+			if (tm.Check(200))
 			{
 				maxCloseShaftPos = shaftPos = 0;
 
@@ -767,6 +789,9 @@ static void UpdateMotorGood()
 			{
 				tachoDir = -tachoDir; // Двигатель FAULHABER 2250 024 BX4
 				DCL *= 2;
+				Kp /= 2;
+				Ki /= 2;
+				curCal = curLim = CUR_CAL_FAULHABER;
 				tm.Reset();
 			};
 
@@ -778,9 +803,9 @@ static void UpdateMotorGood()
 			{
 				i16 m = (tachoDir < 0) ? 2 : 1;
 
-				closeShaftPos = shaftPos + 20*m; // maxCloseShaftPos+15;
+				closeShaftPos = shaftPos + INIT_CLOSE_POSITION*m; // maxCloseShaftPos+15;
 
-				openShaftPos = closeShaftPos + 60*m;
+				openShaftPos = closeShaftPos + 80*m;
 
 				maxOpenShaftPos = openShaftPos + 10*m;
 
@@ -789,6 +814,8 @@ static void UpdateMotorGood()
 				SetDestShaftPos(shaftPos);
 
 				DisableDriver();
+
+				curLim = (tachoDir < 0) ? CUR_LIM_FAULHABER : CUR_LIM_MAXON;
 
 				//tm2.Reset();
 				//t = 500;
@@ -1447,7 +1474,16 @@ static void UpdateRsp30()
 	{
 		if (tm.Check(2))
 		{
-			rsp->data[i++] = avrCurADC;
+			rsp->data[i++] = (motorState != prState) ? -500 : avrCurADC;
+			//rsp->data[i++] = (motorState != prState) ? (shaftPos-100) : shaftPos;
+
+			//u16 t = HW::SCT->MATCHREL_L[0];
+
+			//t = (t > 0) ? (avrCurADC * maxDuty / t) : 0; 
+
+			//rsp->data[i++] = (motorState != prState) ? -500 : t;
+
+			prState = motorState;
 
 			n -= 1;
 
