@@ -23,7 +23,16 @@ static u16 verDevice = 0x103;
 
 //static u32 manCounter = 0;
 
-static u16 cal[128+32];
+__packed struct S_cal
+{
+	u16 rw;
+	float Tau1, Tau2;
+	float P0, kP, T0, kT;
+	float dP0, dkP, dT0, dkT;
+	u16 crc;
+};
+
+static S_cal cal;
 static bool loadCal = true;
 static bool saveCal = false;
 
@@ -42,6 +51,11 @@ static void* eepromData = 0;
 static u16 eepromWriteLen = 0;
 static u16 eepromReadLen = 0;
 static u16 eepromStartAdr = 0;
+
+static float avrAP1 = 0;
+static float avrAP2 = 0;
+static u16 AP = 0;
+static u16 dAP = 0;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -106,6 +120,28 @@ static bool Check_EEPROM_Ready()
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static void UpdateAP()
+{
+	static TM32 tm;
+
+	if (tm.Check(50))
+	{
+		u16 p = GetAP();
+		i16 t = temp;
+
+		float ap = (cal.P0 + cal.kP*p + (cal.T0+cal.kT*t) * (cal.dP0+cal.dkP*p)) / (1-(cal.dT0+cal.dkT*t)*(cal.dP0+cal.dkP*p));
+
+		avrAP1 += (ap - avrAP1) * (0.05/cal.Tau1);
+		avrAP2 += (ap - avrAP2) * (0.05/cal.Tau2);
+
+		AP = avrAP1;
+		dAP = avrAP1 - avrAP2;
+		dAP += 32768;
+	};
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void UpdateTemp()
 {
@@ -325,7 +361,7 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	rsp[0] = manReqWord|0x20;	//	1.Ответное слово (принятая команда)
 	rsp[1] = GetAP();			//	2.Давление (у.е)
 	rsp[2] = temp;				//	3.Температура манометра (у.е)
-	rsp[3] = GetAP() / 2;		//	4.Давление (0.01 МПа)
+	rsp[3] = AP;				//	4.Давление (0.01 МПа)
 	rsp[4] = temp;				//	5.Температура в приборе(гр)(short)
 	rsp[5] = GetShaftPos();		//	6.Положение вала двигателя (short у.е)
 	rsp[6] = closeShaftPos;		//	7.Положение вала при закрытии(у.е)(short)
@@ -390,10 +426,10 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	if (wb == 0 || len != 1) return false;
 
-	cal[0] = manReqWord|0x70;	// 	1. ответное слово
+	cal.rw = manReqWord|0x70;	// 	1. ответное слово
 
 	wb->data = &cal;
-	wb->len = 129*2;//sizeof(cal);
+	wb->len = sizeof(cal);
 
 	return true;
 }
@@ -451,9 +487,9 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	if (wb == 0 || len < 129) return false;
 
-	u16 *p = cal+1;
+	u16 *p = (u16*)&cal.rw;
 
-	for (byte i = 0; i < 128; i++)
+	for (byte i = 0; i < (sizeof(cal)/2); i++)
 	{
 		*(p++) = data[i];
 	};
@@ -609,9 +645,7 @@ static void UpdateLoadSave()
 				adr = 0;
 				count = 4;
 
-				u16 n = ArraySize(cal) - 1;
-
-				cal[n] = GetCRC(cal, sizeof(cal) - 2);
+				cal.crc = GetCRC(&cal, sizeof(cal) - 2);
 
 				i = 3;
 			}
@@ -638,7 +672,7 @@ static void UpdateLoadSave()
 
 		case 1: //+++++++++++++++++++++++++++++++++++++++++++++++
 
-			if (ReadEEPROM(cal, sizeof(cal), adr))
+			if (ReadEEPROM(&cal, sizeof(cal), adr))
 			{
 				i++;
 			};
@@ -649,7 +683,7 @@ static void UpdateLoadSave()
 
 			if (Check_EEPROM_Ready())
 			{
-				if (GetCRC(cal, sizeof(cal)) != 0)
+				if (GetCRC(&cal, sizeof(cal)) != 0)
 				{
 					adr += sizeof(cal);
 					count -= 1;
@@ -660,11 +694,17 @@ static void UpdateLoadSave()
 					}
 					else
 					{
-						for (u16 n = 0; n < ArraySize(cal); n++)
-						{
-							cal[n] = 0x55AA;
-						};
-
+						cal.Tau1 = 1;
+						cal.Tau2 = 200;
+						cal.P0 = 0;
+						cal.kP = 1;
+						cal.T0 = 0;
+						cal.kT = 0;
+						cal.dP0 = 0;
+						cal.dkP = 0;
+						cal.dT0 = 0;
+						cal.dkT = 0;	
+						
 						loadCal = false;
 						saveCal = true;
 
@@ -683,7 +723,7 @@ static void UpdateLoadSave()
 
 		case 3: //+++++++++++++++++++++++++++++++++++++++++++++++
 
-			if (WriteEEPROM(cal, sizeof(cal), adr))
+			if (WriteEEPROM(&cal, sizeof(cal), adr))
 			{
 				i++;
 			};
@@ -803,6 +843,7 @@ static void UpdateMisc()
 		CALL( UpdateMan();		);
 		CALL( UpdateTemp()		);
 		CALL( UpdateLoadSave()	);
+		CALL( UpdateAP()		);
 	};
 
 	i = (i > (__LINE__-S-3)) ? 0 : i;
