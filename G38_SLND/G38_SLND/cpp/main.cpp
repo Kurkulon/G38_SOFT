@@ -19,7 +19,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-static u16 verDevice = 0x103;
+static u16 verDevice = 0x200;
 
 //static u32 manCounter = 0;
 
@@ -61,21 +61,46 @@ static u16 dAP = 0;
 
 static void ResetParams()
 {
-	nvParams[0] = numDevice = 11111;
+	u16 n = 0;
+
+	nvParams[n++] = numDevice = 11111;
+
+	SetMinDestV80				(nvParams[n++] = 450);
+	SetMaxDestV80				(nvParams[n++] = 750);
+	SetDelayMoveDetection		(nvParams[n++] = 75);
+	SetDifCurMinMoveDetection	(nvParams[n++] = 200);
+	SetDelayRetention			(nvParams[n++] = 5);
+	SetMinActiveTime			(nvParams[n++] = 60);
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void InitParams()
 {
-	numDevice = nvParams[0];
+	u16 n = 0;
+
+	numDevice =					nvParams[n++];
+	SetMinDestV80				(nvParams[n++]);
+	SetMaxDestV80				(nvParams[n++]);
+	SetDelayMoveDetection		(nvParams[n++]);
+	SetDifCurMinMoveDetection	(nvParams[n++]);
+	SetDelayRetention			(nvParams[n++]);
+	SetMinActiveTime			(nvParams[n++]);
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void SaveParams()
 {
-	nvParams[0] = numDevice;
+	u16 n = 0;
+
+	nvParams[n++] = numDevice;
+	nvParams[n++] = GetMinDestV80();
+	nvParams[n++] = GetMaxDestV80();
+	nvParams[n++] = GetDelayMoveDetection();
+	nvParams[n++] = GetDifCurMinMoveDetection();
+	nvParams[n++] = GetDelayRetention();
+	nvParams[n++] = GetMinActiveTime();
 
 	saveParam = true;
 }
@@ -338,11 +363,17 @@ static bool RequestMan_00(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
+	static u16 rsp[7];
 
 	if (wb == 0 || len != 1) return false;
 
-	rsp[0] = manReqWord|0x10;	// 	1. ответное слово
+	rsp[0] = manReqWord|0x10;				// 	1. ответное слово
+	rsp[1] = GetMinDestV80();				//	2. Минимальное напряжение соленоида (0.1В) (30...90 В)
+	rsp[2] = GetMaxDestV80();				//	3. Максимальное напряжение соленоида (0.1В) (30...90 В)
+	rsp[3] = GetDelayMoveDetection();		//	4. Задержка алгоритма поиска начала движения соленоида (0.1мс) (0...10 мс)
+	rsp[4] = GetDifCurMinMoveDetection();	//	5. Порог диф.тока поиска начала движения соленоида (мА) (0...1000)
+	rsp[5] = GetDelayRetention();			//	6. Задержка перехода в режим удержания после начала движения соленоида (0.1мс) (0...10 мс)
+	rsp[6] = GetMinActiveTime();			//	7. Минимальное время активного состояния соленоида (0.1мс) (0...20 мс)
 
 	wb->data = rsp;			 
 	wb->len = sizeof(rsp);	 
@@ -354,19 +385,20 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[9];
+	static u16 rsp[10];
 
 	if (wb == 0 || len != 1) return false;
 
-	rsp[0] = manReqWord|0x20;	//	1.Ответное слово (принятая команда)
-	rsp[1] = GetAP();			//	2.Давление (у.е)
-	rsp[2] = temp;				//	3.Температура манометра (у.е)
-	rsp[3] = AP;				//	4.Давление (0.01 МПа)
-	rsp[4] = temp;				//	5.Температура в приборе(гр)(short)
-	rsp[5] = GetV80();			//	6.Положение вала двигателя (short у.е)
-	rsp[6] = GetCap();			//	7.Положение вала при закрытии(у.е)(short)
-	rsp[7] = GetCurrent();		//	8.Ток двигателя (мА)
-	rsp[8] = solenoidState;		//	9.Состояние двигателя
+	rsp[0] = manReqWord|0x20;			//	1.Ответное слово (принятая команда)
+	rsp[1] = GetAP();					//	2.Давление (у.е)
+	rsp[2] = temp;						//	3.Температура манометра (у.е)
+	rsp[3] = AP;						//	4.Давление(0.01 МПа)
+	rsp[4] = dAP;						//	5.Изменение давления (0.01 МПа)
+	rsp[5] = temp;						//	6.Температура в приборе(гр)(short)
+	rsp[6] = GetV80();					//	7.Напряжение соленоида(0.1В)
+	rsp[7] = GetCap();					//	8.Ёмкость конденсаторов(мкФ)
+	rsp[8] = GetCurrent();				//	9.Ток соленоида (мА)
+	rsp[9] = GetSolenoidActiveTime();	//	10.Время активного состояния соленоида (0.1мс)
 
 	wb->data = rsp;
 	wb->len = sizeof(rsp);
@@ -467,9 +499,15 @@ static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	if (wb == 0 || len != 3) return false;
 
-	//switch (data[1])
-	//{
-	//};
+	switch (data[1])
+	{
+		case 0:	SetMinDestV80(data[2]);					break;	//0x00 - Минимальное напряжение соленоида (0.1В) (30...90 В)
+		case 1:	SetMaxDestV80(data[2]);					break;	//0x01 - Максимальное напряжение соленоида (0.1В) (30...90 В)
+		case 2:	SetDelayMoveDetection(data[2]);			break;	//0x02 - Задержка алгоритма поиска начала движения соленоида (0.1мс) (0...10 мс)
+		case 3:	SetDifCurMinMoveDetection(data[2]);		break;	//0x03 - Порог диф.тока поиска начала движения соленоида (мА) (0...1000)
+		case 4:	SetDelayRetention(data[2]);				break;	//0x04 - Задержка перехода в режим удержания после начала движения соленоида (0.1мс) (0...10 мс)
+		case 5:	SetMinActiveTime(data[2]);				break;	//0x05 - Минимальное время активного состояния соленоида (0.1мс) (0...20 мс)
+	};
 
 	rsp[0] = manReqWord|0x90;
  

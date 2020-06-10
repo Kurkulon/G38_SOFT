@@ -190,6 +190,21 @@ inline u16 GetV80()
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+extern u16 GetMinDestV80();
+extern u16 GetMaxDestV80();
+extern u16 GetSolenoidActiveTime();
+extern u16 GetMinActiveTime();
+extern u16 GetDelayRetention();
+extern u16 GetDelayMoveDetection();
+extern u16 GetDifCurMinMoveDetection();
+
+extern void SetMinDestV80(u16);
+extern void SetMaxDestV80(u16);
+extern void SetMinActiveTime(u16);
+extern void SetDelayRetention(u16);
+extern void SetDelayMoveDetection(u16);
+extern void SetDifCurMinMoveDetection(u16);
+
 //inline void OpenValve(u32 tacho, u32 time, u16 lim)
 //{
 //	StartValve(true, tacho, time, lim);

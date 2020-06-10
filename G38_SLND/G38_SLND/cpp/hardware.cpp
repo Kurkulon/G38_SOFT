@@ -45,13 +45,19 @@ u16 curLow = 0; // 1 mA
 u16 vFlow = 0;
 u16 v80 = 0; // 0.1V
 u16 dest_V80 = 700; // 0.1V
+u16 minDestV80 = 450; // 0.1V
+u16 maxDestV80 = 750; // 0.1V
 u32 mmsec = 0; // 0.1 ms
 u32 sumCur = 0;
 u32 sumOpen = 0;
 u16 startOpenVoltage = 0;
 u16 cap = 0; // uF
 bool startRsp30 = false;
-
+u16 solenoidActiveTime = 0; // 0.1 ms
+u16 minActiveTime = 60; // 0.1 ms
+u16 delayRetention = 5;	// 0.1 ms
+u16 delayMoveDetection = 75;	// 0.1 ms
+u16 dCurMinMoveDetection = 200; // 1 mA
 
 byte solenoidState = 0;
 
@@ -111,89 +117,22 @@ static u32 openValveTime = 0;
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-//static void EnableDriver() 
-//{ 
-//	HW::GPIO->SET((1<<14)|(1<<4)); 
-//	HW::MRT->Channel[3].CTRL = 1;
-//}
+u16 GetMinDestV80() 			{ return minDestV80; 			}
+u16 GetMaxDestV80() 			{ return maxDestV80; 			}
+u16 GetSolenoidActiveTime()		{ return solenoidActiveTime;	}
+u16 GetMinActiveTime()			{ return minActiveTime;			}
+u16 GetDelayRetention()			{ return delayRetention;		}
+u16 GetDelayMoveDetection()		{ return delayMoveDetection;	}
+u16 GetDifCurMinMoveDetection()	{ return dCurMinMoveDetection;	}
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+void SetMinDestV80(u16 v)				{ minDestV80 = v; 			}
+void SetMaxDestV80(u16 v)				{ maxDestV80 = v; 			}
+void SetSolenoidActiveTime(u16 v)		{ solenoidActiveTime = v;	}
+void SetMinActiveTime(u16 v)			{ minActiveTime = v;		}
+void SetDelayRetention(u16 v)			{ delayRetention = v;		}
+void SetDelayMoveDetection(u16 v)		{ delayMoveDetection = v;	}
+void SetDifCurMinMoveDetection(u16 v)	{ dCurMinMoveDetection = v;	}
 
-//static void DisableDriver() 
-//{ 
-//	HW::GPIO->BCLR(14);
-//	HW::MRT->Channel[3].CTRL = 0; 
-//	pidOut = 0; 
-//	//curDutyOut = 0;
-//}
-	
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-//static bool CheckDriverOn() 
-//{ 
-//	return HW::GPIO->B0[14] != 0; 
-//}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-//static bool CheckDriverOff() 
-//{ 
-//	return HW::GPIO->B0[14] == 0; 
-//}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-//inline void EnableCapSwitch() 
-//{ 
-//	HW::GPIO->BSET(4); 
-//}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-//inline void DisableCapSwitch() 
-//{ 
-//	HW::GPIO->BCLR(4); 
-//}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-//static __irq void IntDummyHandler()
-//{
-//	__breakpoint(0);
-//}
-//
-////+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-//static __irq void HardFaultHandler()
-//{
-//	__breakpoint(0);
-//}
-//
-////+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-//static __irq void ExtDummyHandler()
-//{
-//	__breakpoint(0);
-//}
-//
-////+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-//static void InitVectorTable()
-//{
-//	for (u32 i = 0; i < ArraySize(VectorTableInt); i++)
-//	{
-//		VectorTableInt[i] = IntDummyHandler;
-//	};
-//
-//	for (u32 i = 0; i < ArraySize(VectorTableExt); i++)
-//	{
-//		VectorTableExt[i] = ExtDummyHandler;
-//	};
-//
-//	VectorTableInt[3] = HardFaultHandler;
-//
-//	CM0::SCB->VTOR = (u32)VectorTableInt;
-//}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -326,8 +265,8 @@ static void UpdateSolenoid()
 			startOpenVoltage = v80;
 			moveDetected = false;
 			moveStartTime = 0;
-			moveDeadTime = (v80 > 400) ? (75*400/v80) : 75;
-			timeout = moveDeadTime * 2;
+			moveDeadTime = (v80 > 400) ? (delayMoveDetection*400/v80) : delayMoveDetection;
+			timeout = moveDeadTime * 2; if (timeout < minActiveTime) timeout = minActiveTime;
 			dCurMoveMax = 0;
 			dCurMoveThr = 0;
 
@@ -346,7 +285,7 @@ static void UpdateSolenoid()
 				dCurMoveThr = dCurMoveMax / 4;
 			};
 
-			if (!moveDetected && tm.Timeout(moveDeadTime) && (dCurMoveMax >= 200) && (dCurADC < dCurMoveThr)) 
+			if (!moveDetected && tm.Timeout(moveDeadTime) && (dCurMoveMax >= dCurMinMoveDetection) && (dCurADC < dCurMoveThr)) 
 			{
 				moveDetected = true;
 				moveStartTime = tm.GetTime();
@@ -354,7 +293,7 @@ static void UpdateSolenoid()
 
 			bool c = tm.Timeout(timeout);
 
-			if (c || (moveDetected && (tm.Timeout(moveStartTime+5) && dCurADC > (dCurMoveThr*2))))
+			if (c || (moveDetected && (tm.Timeout(moveStartTime+delayRetention) && dCurADC > (dCurMoveThr*2))))
 			{
 				SetDutyPWM(0);
 
@@ -368,14 +307,16 @@ static void UpdateSolenoid()
 
 				if (!c)
 				{
-					if (dest_V80 > 450) dest_V80 -= 10;
+					if (dest_V80 > minDestV80) dest_V80 -= 10;
 				}
 				else
 				{
-					if (dest_V80 <= 750) dest_V80 += 50;
+					if (dest_V80 <= maxDestV80) dest_V80 += 50;
 				};
 
 				solenoidState++;
+
+				solenoidActiveTime = tm.GetTime();
 
 				tm.Reset();
 			};
