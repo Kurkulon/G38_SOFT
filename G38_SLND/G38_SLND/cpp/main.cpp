@@ -157,12 +157,14 @@ static void UpdateAP()
 
 		float ap = (cal.P0 + cal.kP*p + (cal.T0+cal.kT*t) * (cal.dP0+cal.dkP*p)) / (1-(cal.dT0+cal.dkT*t)*(cal.dP0+cal.dkP*p));
 
+		ap *= 100;
+
 		avrAP1 += (ap - avrAP1) * (0.05/cal.Tau1);
 		avrAP2 += (ap - avrAP2) * (0.05/cal.Tau2);
 
 		AP = avrAP1;
-		dAP = avrAP1 - avrAP2;
-		dAP += 32768;
+		dAP = (i16)(avrAP1 - avrAP2);
+		//dAP += 32768;
 	};
 }
 
@@ -461,7 +463,7 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	cal.rw = manReqWord|0x70;	// 	1. ответное слово
 
 	wb->data = &cal;
-	wb->len = sizeof(cal);
+	wb->len = sizeof(cal)-2;
 
 	return true;
 }
@@ -523,7 +525,7 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0 || len < 129) return false;
+	if (wb == 0 || len < ((sizeof(cal)-2)/2)) return false;
 
 	u16 *p = (u16*)&cal.rw;
 

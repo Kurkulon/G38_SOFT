@@ -610,6 +610,7 @@ void InitHardware()
 
 #else
 
+	ResetWDT();
 	WDT->MOD = 0;
 	ResetWDT();
 
