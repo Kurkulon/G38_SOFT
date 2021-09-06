@@ -325,9 +325,9 @@ static void UpdateSolenoid()
 
 		case 3: // Открыт
 
-			if (tm.Check(100))
+			if (tm.Check(10))
 			{
-				u16 t = (v80 < 750) ? (150 + (750 - v80)/2) : 150;
+				u16 t = (v80 < 750) ? (200 + (750 - v80)*1) : 200;
 
 				SetDutyPWM(t);
 			};
