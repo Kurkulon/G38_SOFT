@@ -327,7 +327,7 @@ static void UpdateSolenoid()
 
 			if (tm.Check(10))
 			{
-				u16 t = (v80 < 750) ? (200 + (750 - v80)*1) : 200;
+				u16 t = (v80 < 750) ? (300 + (750 - v80)*1) : 300;
 
 				SetDutyPWM(t);
 			};
