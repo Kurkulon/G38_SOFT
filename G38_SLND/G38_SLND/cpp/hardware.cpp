@@ -39,12 +39,15 @@ u16 curADC = 0; // 1 mA
 u16 avrCurADC = 0;
 i16 dCurADC = 0;
 u32 fcurADC = 0;
+i32 fdCurADC = 0;
+i16 avrdCurADC = 0;
 u16 vAP = 0;
 u32 fvAP = 0;
 u16 curLow = 0; // 1 mA
 u16 vFlow = 0;
 u16 v80 = 0; // 0.1V
 u16 dest_V80 = 700; // 0.1V
+bool enable_V80 = true;
 u16 minDestV80 = 450; // 0.1V
 u16 maxDestV80 = 750; // 0.1V
 u32 mmsec = 0; // 0.1 ms
@@ -93,8 +96,8 @@ static void InitRsp30();
 //static u16 curLim = CUR_LIM_MAXON;
 //static u16 curCal = CUR_CAL_MAXON;
 
-static i32 maxOut = 0;
-static i32 limOut = 0;
+//static i32 maxOut = 0;
+//static i32 limOut = 0;
 
 //const u16 _minDuty = 100;//400;
 //const u16 _maxDuty = 350;//400;
@@ -106,7 +109,7 @@ const u16 maxDuty = 4875;
 //
 static u32 startOpenTime = 0;
 //static u32 startCloseTime = 0;
-static u32 openValveTime = 0;
+//static u32 openValveTime = 0;
 //static u32 closeValveTime = 0;
 //static i8 tachoDir = 1;
 
@@ -187,6 +190,21 @@ extern "C" void SystemInit()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+inline void EnableV80()
+{
+	enable_V80 = true;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+inline void DisableV80()
+{
+	enable_V80 = false;
+	HW::GPIO->SET0 = EN;
+}
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 inline void EnableDriver()
 {
 	HW::SWM->CTOUT_0 = PIN_HIN1;
@@ -236,11 +254,17 @@ static void UpdateSolenoid()
 //	static i32 cnt = 0;
 
 	static bool moveDetected = false;
+	static bool dCurMaxDetected = false;
+	static bool dCurMinDetected = false;
 	static u32 moveStartTime = 0;
-	static u32 moveDeadTime = 0;
+	//static u32 moveDeadTime = 0;
 	static i16 dCurMoveMax = 0;
-	static i16 dCurMoveThr = 0;
-	static u32 timeout = 0;
+	static i16 dCurMoveMin = 0;
+	//static i16 dCurMoveThr = 0;
+	//static u32 timeout = 0;
+	static u32 dCurMinTime = 0;
+
+	bool c;
 
 	switch (solenoidState)
 	{
@@ -257,21 +281,26 @@ static void UpdateSolenoid()
 		case 1: // Старт открытия
 
 			tm.Reset();
+			tm2.Reset();
+			
+			DisableV80();
 
 			SetDutyPWM(maxDuty);
 			EnableDriver();
 
 			sumCur = 0;
 			startOpenVoltage = v80;
+			dCurMaxDetected = false;
+			dCurMinDetected = false;
 			moveDetected = false;
 			moveStartTime = 0;
-			moveDeadTime = (v80 > 400) ? (delayMoveDetection*400/v80) : delayMoveDetection;
-			timeout = moveDeadTime * 2; if (timeout < minActiveTime) timeout = minActiveTime;
+			//moveDeadTime = (v80 > 400) ? (delayMoveDetection*400/v80) : delayMoveDetection;
+			//timeout = moveDeadTime * 2; if (timeout < minActiveTime) timeout = minActiveTime;
 			dCurMoveMax = 0;
-			dCurMoveThr = 0;
+			//dCurMoveThr = 0;
+			dCurMinTime = 0;
 
 			startRsp30 = true;
-
 
 			solenoidState++;
 
@@ -279,21 +308,23 @@ static void UpdateSolenoid()
 
 		case 2: // Открытие
 
-			if (!moveDetected && dCurADC > dCurMoveMax)
+			if (!dCurMaxDetected)
+			{ 
+				if (avrdCurADC >= dCurMoveMax) dCurMoveMax = avrdCurADC, tm2.Reset(); else if (tm2.Check(20) && dCurMoveMax >= dCurMinMoveDetection) dCurMaxDetected = true, dCurMoveMin = dCurMoveMax, tm2.Reset();
+			}
+			else if (!dCurMinDetected)
 			{
-				dCurMoveMax = dCurADC;
-				dCurMoveThr = dCurMoveMax / 4;
-			};
-
-			if (!moveDetected && tm.Timeout(moveDeadTime) && (dCurMoveMax >= dCurMinMoveDetection) && (dCurADC < dCurMoveThr)) 
+				if (avrdCurADC <= dCurMoveMin) dCurMoveMin = avrdCurADC, dCurMinTime = tm.GetTime(), tm2.Reset(); else if (tm2.Check(10) && dCurMinTime >= delayMoveDetection) dCurMinDetected = true, tm2.Reset();
+			}
+			else
 			{
 				moveDetected = true;
-				moveStartTime = tm.GetTime();
+				moveStartTime = dCurMinTime;
 			};
 
-			bool c = tm.Timeout(timeout);
+			c = tm.Timeout(minActiveTime);
 
-			if (c || (moveDetected && (tm.Timeout(moveStartTime+delayRetention) && dCurADC > (dCurMoveThr*2))))
+			if (c || (moveDetected && tm.Timeout(moveStartTime+delayRetention))) //(c || (moveDetected && (tm.Timeout(moveStartTime+delayRetention) && dCurADC > (dCurMoveThr*2))))
 			{
 				SetDutyPWM(0);
 
@@ -302,16 +333,16 @@ static void UpdateSolenoid()
 
 				if (startOpenVoltage > eV)
 				{
-					cap = (sum * 3 / (startOpenVoltage - eV)) / 4; // q = I / 1000 / 10000
+					cap = (sum / (startOpenVoltage - eV)); // q = I / 1000 / 10000
 				};
 
-				if (!c)
+				if (c || dCurMoveMin < 0)
 				{
-					if (dest_V80 > minDestV80) dest_V80 -= 10;
+					if (dest_V80 <= maxDestV80) dest_V80 += 50; else if (dest_V80 > maxDestV80) dest_V80 = maxDestV80;
 				}
 				else
 				{
-					if (dest_V80 <= maxDestV80) dest_V80 += 50;
+					if (dest_V80 > minDestV80) dest_V80 -= 10; else if (dest_V80 < minDestV80) dest_V80 = minDestV80;
 				};
 
 				solenoidState++;
@@ -319,6 +350,8 @@ static void UpdateSolenoid()
 				solenoidActiveTime = tm.GetTime();
 
 				tm.Reset();
+						
+				EnableV80();
 			};
 
 			break;
@@ -339,6 +372,8 @@ static void UpdateSolenoid()
 			tm.Reset();
 
 			DisableDriver();
+
+			EnableV80();
 			
 			solenoidState++;
 
@@ -356,7 +391,7 @@ static void UpdateSolenoid()
 
 static void UpdateV80()
 {
-	if (v80 >= (dest_V80+10))
+	if (!enable_V80 || v80 >= (dest_V80+10))
 	{
 		HW::GPIO->SET0 = EN;
 	}
@@ -525,7 +560,7 @@ static void UpdateRsp30()
 //		if (tm.Check(1))
 		{
 			rsp1->data[i] = curADC;//avrCurADC;
-			rsp2->data[i++] = dCurADC;
+			rsp2->data[i++] = avrdCurADC;
 
 			n -= 1;
 
@@ -562,7 +597,11 @@ __irq void MRT_Handler()
 		curADC = ((HW::ADC->DAT0&0xFFF0) * 9768 ) >> 16;  
 		fcurADC += curADC - avrCurADC; 
 		avrCurADC = fcurADC >> 2;
+
 		dCurADC = curADC - avrCurADC;
+		fdCurADC += dCurADC - avrdCurADC; 
+		avrdCurADC = fdCurADC / 4;
+
 		sumCur += curADC;
 		
 		UpdateRsp30();

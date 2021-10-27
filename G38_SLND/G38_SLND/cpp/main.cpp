@@ -65,12 +65,12 @@ static void ResetParams()
 
 	nvParams[n++] = numDevice = 11111;
 
-	SetMinDestV80				(nvParams[n++] = 450);
-	SetMaxDestV80				(nvParams[n++] = 750);
-	SetDelayMoveDetection		(nvParams[n++] = 75);
-	SetDifCurMinMoveDetection	(nvParams[n++] = 200);
-	SetDelayRetention			(nvParams[n++] = 5);
-	SetMinActiveTime			(nvParams[n++] = 60);
+	SetMinDestV80				(nvParams[n++] = 700);
+	SetMaxDestV80				(nvParams[n++] = 800);
+	SetDelayMoveDetection		(nvParams[n++] = 30);
+	SetDifCurMinMoveDetection	(nvParams[n++] = 100);
+	SetDelayRetention			(nvParams[n++] = 10);
+	SetMinActiveTime			(nvParams[n++] = 200);
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
