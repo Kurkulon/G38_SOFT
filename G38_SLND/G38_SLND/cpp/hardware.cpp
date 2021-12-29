@@ -416,7 +416,7 @@ static void UpdateADC()
 	{
 		CALL( fvAP +=	(((ADC->DAT1&0xFFF0) * 3300) >> 16) - vAP; vAP = fvAP >> 3;	);
 		CALL( vFlow =	((ADC->DAT2&0xFFF0) * 1800 ) >> 16;  						);
-		CALL( curLow =	((ADC->DAT3&0xFFF0) * 2640 ) >> 16;  						);
+		CALL( curLow =	((ADC->DAT3&0xFFF0) * 6600 ) >> 16;  						); // 2640
 		CALL( v80 =		((ADC->DAT10&0xFFF0) * 1033 ) >> 16;  	UpdateV80();		);
 	};
 
@@ -594,7 +594,7 @@ __irq void MRT_Handler()
 	{
 		mmsec++;
 
-		curADC = ((HW::ADC->DAT0&0xFFF0) * 9768 ) >> 16;  
+		curADC = ((HW::ADC->DAT0&0xFFF0) * 24420 ) >> 16;  //24420 //9768
 		fcurADC += curADC - avrCurADC; 
 		avrCurADC = fcurADC >> 2;
 
