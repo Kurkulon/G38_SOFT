@@ -10,8 +10,9 @@
 //#define CLOSE_VALVE_CUR 600
 
 #define LOCK_CLOSE_POSITION 0
-#define INIT_CLOSE_POSITION 55
-#define OPEN_POSITION		60
+#define INIT_CLOSE_POSITION 0
+#define OPEN_POSITION		20
+#define OPEN_RAND_MASK		63
 #define CUR_CAL_MAXON		600
 #define CUR_CAL_FAULHABER	300
 
@@ -203,7 +204,7 @@ static u32 startOpenTime = 0;
 static u32 startCloseTime = 0;
 static u32 openValveTime = 0;
 static u32 closeValveTime = 0;
-static i8 tachoDir = 1;
+static i8 tachoDir = -1;
 
 
 
@@ -433,35 +434,13 @@ static i32 SetDutyCurrent(u16 cur)
 
 static void PID_Update()
 {
-	//static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
-	//dword t = GetMilliseconds();
-	//dword dt = t - pt;
-
 	static i32 e1 = 0, e2 = 0;
-//	static i32 dst = 0;
-
-//	const i32 Kp = 10.0 * 65536, Ki = 0.01 * 65536, Kd = 0.0 * 65536;
 
 	i32 e;// = fltDestShaftPos/32;
 
-	//if (destShaftPos > e)
-	//{
-	//	fltDestShaftPos += 1;
-	//}
-	//else if (destShaftPos < e)
-	//{
-	//	fltDestShaftPos -= 1;
-	//};
-
 	e = destShaftPos - shaftPos;
 	
-	//float kp = Kp;
-	//float kdd = Kd * 1000 / dt;
-	//float kid = Ki * 1000 / dt;
-
 	pidOut += Kp * (e - e1) + Ki * e + Kd * (e - e1 * 2  + e2);
-
-	//if (curADC > 600 && maxDuty > _minDuty) { maxDuty -= 5; };
 
 	i32	maxOut = (i32)maxDuty * 65536;
 	
@@ -478,17 +457,6 @@ static void PID_Update()
 	
 	po *= SetDutyCurrent(curLim);
 	po /= 65536;
-
-	//po = 0;
-
-	//if (destShaftPos > shaftPos)
-	//{
-	//	po = 400;
-	//}
-	//else if (destShaftPos < shaftPos)
-	//{
-	//	po = -400;
-	//};
 
 	SetDutyPWMDir(curPidOut = po);
 
@@ -537,6 +505,8 @@ static void PID_Update()
 
 void OpenValve(bool forced)
 {
+	static u32 rand = 0;
+
 	if (motorState == 0 || motorState == 2 || forced)
 	{
 		curLim = (tachoDir < 0) ? CUR_LIM_FAULHABER : CUR_LIM_MAXON;
@@ -545,11 +515,13 @@ void OpenValve(bool forced)
 
 		EnableDriver();
 
-		openShaftPos = closeShaftPos + deltaShaftPos;
-
-		SetDestShaftPos(openShaftPos);
+		openShaftPos = closeShaftPos + deltaShaftPos + (rand & OPEN_RAND_MASK);
 
 		startOpenTime = GetMilliseconds();
+
+		rand = (rand+1019+startOpenTime)*9871;
+
+		SetDestShaftPos(openShaftPos);
 
 		motorState = 3;
 	};
@@ -599,9 +571,9 @@ static void UpdateMotorGood()
 
 		case 1: // Закрытие
 
-			if (tm.Check(500))
+			if (tm.Check(100))
 			{
-				closeShaftPos.pos += 128;
+				closeShaftPos = shaftPos; //closeShaftPos.pos += 128;
 
 				errCloseCount += 1;
 
@@ -611,11 +583,7 @@ static void UpdateMotorGood()
 			}
 			else if ((shaftPos - closeShaftPos) <= (CSD/2) && tm.Timeout(20) || shaftPos <= closeShaftPos)
 			{
-//				closeShaftPos.pos += ((shaftPos - closeShaftPos) * CFK) >> 3; 
-				
 				tm2.Reset();
-
-//				SetDestShaftPos(closeShaftPos+15);
 
 				DisableDriver();
 
@@ -689,7 +657,7 @@ static void UpdateMotorGood()
 
 				errOpenCount += 1;
 
-				DisableDriver();
+				//DisableDriver();
 
 				motorState++;
 			}
@@ -700,7 +668,7 @@ static void UpdateMotorGood()
 				tm2.Reset();
 				t = 100;
 
-				DisableDriver();
+				//DisableDriver();
 
 				openValveTime = GetMilliseconds() - startOpenTime;
 
@@ -717,25 +685,25 @@ static void UpdateMotorGood()
 
 		case 4: // Открыт
 
-			if (CheckDriverOff())
+//			if (CheckDriverOff())
 			{
-				if (shaftPos < (openShaftPos-10) || shaftPos > (openShaftPos+10)) 
+//				if (shaftPos < (openShaftPos-10) || shaftPos > (openShaftPos+10)) 
 				{
 					SetDestShaftPos(openShaftPos);
 					EnableDriver();
 				};
 
-				tm.Reset();
+//				tm.Reset();
 			}
-			else
-			{
-				if (shaftPos >= (openShaftPos-5) && shaftPos <= (openShaftPos+5))
-				{
-					DisableDriver();
+			//else
+			//{
+			//	if (shaftPos >= (openShaftPos-5) && shaftPos <= (openShaftPos+5))
+			//	{
+			//		DisableDriver();
 
-					tm.Reset();
-				};
-			};
+			//		tm.Reset();
+			//	};
+			//};
 
 			prevshaftPos = shaftPos;
 
