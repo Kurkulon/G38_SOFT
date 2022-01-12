@@ -12,7 +12,7 @@
 #define LOCK_CLOSE_POSITION 0
 #define INIT_CLOSE_POSITION 0
 #define OPEN_POSITION		20
-#define OPEN_RAND_MASK		63
+#define OPEN_RAND_MASK		31
 #define CUR_CAL_MAXON		600
 #define CUR_CAL_FAULHABER	300
 
@@ -590,6 +590,10 @@ static void UpdateMotorGood()
 				closeValveTime = GetMilliseconds() - startCloseTime;
 
 				motorState++;
+			}
+			else if (shaftPos <= ((openShaftPos - closeShaftPos) / 2))
+			{
+				DisableDriver();
 			};
 
 			if ((prevshaftPos - shaftPos) > 0/* || (curADC < 400)*/)
@@ -603,49 +607,11 @@ static void UpdateMotorGood()
 
 		case 2: // Закрыт
 
-			if (tm.Check(500))
-			{
-				DisableDriver();
-
-				motorState = 0;
-			}
-			else if (tm2.Check(10))
-			{
-				if (LOCK_CLOSE_POSITION == 1)
-				{
-					EnableDriver();
-
-					if (shaftPos >= (destShaftPos-1)) 
-					{
-						tm.Reset();
-					};
-				}
-				else
-				{
-					if (CheckDriverOff())
-					{
-						if (shaftPos > (closeShaftPos+DCL)) 
-						{
-						//	closeShaftPos++;
-							SetDestShaftPos(closeShaftPos+DCL-2);
-							EnableDriver();
-						};
-
-						tm.Reset();
-					}
-					else
-					{
-						if (shaftPos <= (closeShaftPos+DCL-1))
-						{
-							DisableDriver();
-
-							tm.Reset();
-						};
-					};
-				};
-			};
+			DisableDriver();
 
 			prevshaftPos = shaftPos;
+
+			tm.Reset();
 
 			break;
 
