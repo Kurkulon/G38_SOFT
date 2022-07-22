@@ -22,8 +22,8 @@
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="wmake -h version=Debug"
-				ReBuildCommandLine="wmake -h -a version=Debug"
+				BuildCommandLine="make -h version=Debug"
+				ReBuildCommandLine="make -h -a version=Debug"
 				CleanCommandLine="@del /Q .\Debug\*.*"
 				Output="$(OutDir)\msreg.axf"
 				PreprocessorDefinitions="_DEBUG,__softfp="
@@ -42,8 +42,8 @@
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="wmake -h version=Release"
-				ReBuildCommandLine="wmake -h -a version=Release"
+				BuildCommandLine="make -h version=Release"
+				ReBuildCommandLine="make -h -a version=Release"
 				CleanCommandLine="@del /Q .\Release\*.*"
 				Output="$(OutDir)\msreg.axf"
 				PreprocessorDefinitions="__softfp="
@@ -62,8 +62,8 @@
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="wmake -h version=Win32_Debug"
-				ReBuildCommandLine="wmake -h -a version=Win32_Debug"
+				BuildCommandLine="make -h version=Win32_Debug"
+				ReBuildCommandLine="make -h -a version=Win32_Debug"
 				CleanCommandLine="@del /Q $(OutDir)\*.*"
 				Output="$(OutDir)\msreg.exe"
 				PreprocessorDefinitions="_DEBUG,__softfp=,WIN32"

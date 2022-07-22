@@ -6,8 +6,7 @@
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-const char build_date[] __attribute__((used)) = "\n" __DATE__ "\n" __TIME__ "\n";
-
+const char build_date[] __attribute__((used))	= "\nBuild num: " BUILDNUMSTR "\nBuild date: " __DATE__ " " __TIME__ "\n";
 
 u32 fps = 0;
 
@@ -19,7 +18,8 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-static u16 verDevice = 0x200;
+const u16 verDevice = 0x201;
+const u16 buildNum = BUILDNUMVAR;
 
 //static u32 manCounter = 0;
 

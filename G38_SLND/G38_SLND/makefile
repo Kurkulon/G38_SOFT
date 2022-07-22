@@ -23,8 +23,7 @@ make : .SYMBOLIC
 !ifneq version Win32_Debug
 	@call wmake -h -f makedep version=$(version) cppdir=$(cppdir) objdir=$(objdir)
 !endif
-	@call wmake $(__MAKEOPTS__) -f makeobj version=$(version) cppdir=$(cppdir) objdir=$(objdir)
-
+	@wmake $(__MAKEOPTS__) -f makeobj version=$(version) cppdir=$(cppdir) objdir=$(objdir)
 
 ##################################################################################################
 
