@@ -37,6 +37,7 @@
 //u16 reqHV = 800;
 u16 curADC = 0; // 1 mA
 u16 avrCurADC = 0;
+u16 maxCurADC = 0;
 i16 dCurADC = 0;
 u32 fcurADC = 0;
 i32 fdCurADC = 0;
@@ -55,6 +56,7 @@ u32 sumCur = 0;
 u32 sumOpen = 0;
 u16 startOpenVoltage = 0;
 u16 cap = 0; // uF
+u16 energy = 0;
 bool startRsp30 = false;
 u16 solenoidActiveTime = 0; // 0.1 ms
 u16 minActiveTime = 60; // 0.1 ms
@@ -270,12 +272,6 @@ static void UpdateSolenoid()
 	{
 		case 0:		// Idle;
 
-			//DisableDriver();
-
-			//prevshaftPos = shaftPos;
-
-			tm.Reset();
-
 			break;
 
 		case 1: // Старт открытия
@@ -316,10 +312,10 @@ static void UpdateSolenoid()
 			{
 				if (avrdCurADC <= dCurMoveMin) dCurMoveMin = avrdCurADC, dCurMinTime = tm.GetTime(), tm2.Reset(); else if (tm2.Check(10) && dCurMinTime >= delayMoveDetection) dCurMinDetected = true, tm2.Reset();
 			}
-			else
+			else if (avrdCurADC > dCurMoveMax)
 			{
 				moveDetected = true;
-				moveStartTime = dCurMinTime;
+				moveStartTime = tm.GetTime();
 			};
 
 			c = tm.Timeout(minActiveTime);
@@ -329,17 +325,23 @@ static void UpdateSolenoid()
 				SetDutyPWM(0);
 
 				u32 sum = sumCur;
-				u32 eV = v80;
+				u16 eV = v80;
 
 				if (startOpenVoltage > eV)
 				{
-					cap = (sum / (startOpenVoltage - eV)); // q = I / 1000 / 10000
+					u16 dV = startOpenVoltage - eV;
+					cap = (sum / dV); // q = I / 1000 / 10000
+					energy = (sum / 2) * dV / 1024;
 				};
 
-				if (c || dCurMoveMin < 0)
+				if (c)
 				{
-					if (dest_V80 <= maxDestV80) dest_V80 += 50; else if (dest_V80 > maxDestV80) dest_V80 = maxDestV80;
+					dest_V80 = maxDestV80;
 				}
+				//else if (dCurMoveMin < 0)
+				//{
+				//	if (dest_V80 <= maxDestV80) dest_V80 += 50; else if (dest_V80 > maxDestV80) dest_V80 = maxDestV80;
+				//}
 				else
 				{
 					if (dest_V80 > minDestV80) dest_V80 -= 10; else if (dest_V80 < minDestV80) dest_V80 = minDestV80;
@@ -381,7 +383,10 @@ static void UpdateSolenoid()
 
 		case 5: // Закрыт
  
-			tm.Reset();
+			if (tm.Check(200000))
+			{
+				dest_V80 = 850;
+			};
 
 			break;
 	};
@@ -603,6 +608,8 @@ __irq void MRT_Handler()
 		avrdCurADC = fdCurADC / 4;
 
 		sumCur += curADC;
+
+		if (curADC > maxCurADC) maxCurADC = curADC;
 		
 		UpdateRsp30();
 	};

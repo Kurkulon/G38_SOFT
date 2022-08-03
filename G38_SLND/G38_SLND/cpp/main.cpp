@@ -398,8 +398,8 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	rsp[4] = dAP;						//	5.Èçìåíåíèå äàâëåíèÿ (0.01 ÌÏà)
 	rsp[5] = temp;						//	6.Òåìïåğàòóğà â ïğèáîğå(ãğ)(short)
 	rsp[6] = GetV80();					//	7.Íàïğÿæåíèå ñîëåíîèäà(0.1Â)
-	rsp[7] = GetCap();					//	8.¨ìêîñòü êîíäåíñàòîğîâ(ìêÔ)
-	rsp[8] = GetCurrent();				//	9.Òîê ñîëåíîèäà (ìÀ)
+	rsp[7] = GetEnergy();				//	8.¨ìêîñòü êîíäåíñàòîğîâ(ìêÔ)
+	rsp[8] = GetMaxCurrent();			//	9.Òîê ñîëåíîèäà (ìÀ)
 	rsp[9] = GetSolenoidActiveTime();	//	10.Âğåìÿ àêòèâíîãî ñîñòîÿíèÿ ñîëåíîèäà (0.1ìñ)
 
 	wb->data = rsp;

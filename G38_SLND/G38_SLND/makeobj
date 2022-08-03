@@ -65,7 +65,7 @@ compiler_options = $(debug_compiler_options) --asm --interleave -g -c --cpu=CORT
 
 ##################################################################################################
 
-asm_options = --cpu CORTEX-M0plus -g --apcs /interwork --xref --diag_style=ide --pd "__MICROLIB SETA 1" --pd "__PROGNAME__ SETS \"KAPCAP G38.1(SOLENOID_ynp)-3.1\nbuild:$(%buildnumvar)\"" --cpreproc
+asm_options = --cpu CORTEX-M0plus -g --apcs /interwork --xref --diag_style=ide --pd "__MICROLIB SETA 1" --pd "__PROGNAME__ SETS \"KAPCAP G38.1(SOLENOID_ynp)-3.1\nBuild:$(%buildnumvar)\"" --cpreproc
 
 ##################################################################################################
 
