@@ -21,6 +21,11 @@
 //	i32 operator-=(i32 v) { return (pos -= v<<8)>>8; }
 //
 //};
+extern u16 impNomMoveOK;
+extern u16 impNomMoveNo;
+extern u16 impMaxMoveOK;
+extern u16 impMaxMoveNo;
+extern u16 impCount;
 
 struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; };
 

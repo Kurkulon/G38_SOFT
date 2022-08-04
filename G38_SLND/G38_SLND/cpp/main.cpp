@@ -57,6 +57,7 @@ static float avrAP2 = 0;
 static u16 AP = 0;
 static u16 dAP = 0;
 
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 static void ResetParams()
@@ -347,13 +348,14 @@ static void UpdateTemp()
 
 static bool RequestMan_00(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[3];
+	static u16 rsp[4];
 
 	if (wb == 0 || len != 1) return false;
 
 	rsp[0] = manReqWord;
 	rsp[1] = numDevice;
 	rsp[2] = verDevice;
+	rsp[3] = buildNum;
 
 	wb->data = rsp;
 	wb->len = sizeof(rsp);
@@ -387,20 +389,25 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[10];
+	static u16 rsp[15];
 
 	if (wb == 0 || len != 1) return false;
 
-	rsp[0] = manReqWord|0x20;			//	1.Ответное слово (принятая команда)
-	rsp[1] = GetAP();					//	2.Давление (у.е)
-	rsp[2] = temp;						//	3.Температура манометра (у.е)
-	rsp[3] = AP;						//	4.Давление(0.01 МПа)
-	rsp[4] = dAP;						//	5.Изменение давления (0.01 МПа)
-	rsp[5] = temp;						//	6.Температура в приборе(гр)(short)
-	rsp[6] = GetV80();					//	7.Напряжение соленоида(0.1В)
-	rsp[7] = GetEnergy();				//	8.Ёмкость конденсаторов(мкФ)
-	rsp[8] = GetMaxCurrent();			//	9.Ток соленоида (мА)
-	rsp[9] = GetSolenoidActiveTime();	//	10.Время активного состояния соленоида (0.1мс)
+	rsp[0]	= manReqWord|0x20;			//	1.Ответное слово (принятая команда)
+	rsp[1]	= GetAP();					//	2.Давление (у.е)
+	rsp[2]	= temp;						//	3.Температура манометра (у.е)
+	rsp[3]	= AP;						//	4.Давление(0.01 МПа)
+	rsp[4]	= dAP;						//	5.Изменение давления (0.01 МПа)
+	rsp[5]	= temp;						//	6.Температура в приборе(гр)(short)
+	rsp[6]	= GetV80();					//	7.Напряжение соленоида(0.1В)
+	rsp[7]	= GetCap();					//	8.Ёмкость конденсаторов(мкФ)
+	rsp[8]	= GetMaxCurrent();			//	9.Ток соленоида (мА)
+	rsp[9]	= GetSolenoidActiveTime();	//	10.Время активного состояния соленоида (0.1мс)
+	rsp[10]	= impNomMoveOK;				//	11. Импульсы, заряд номинальный, движение найдено.
+	rsp[11]	= impNomMoveNo;				//	12. Импульсы, заряд номинальный, движение пропущено.
+	rsp[12]	= impMaxMoveOK;				//	13. Импульсы, заряд после простоя, движение найдено.
+	rsp[13]	= impMaxMoveNo;				//	14. Импульсы, заряд после простоя, движение пропущено.
+	rsp[14]	= impCount;					//	15. Общее количество импульсов.
 
 	wb->data = rsp;
 	wb->len = sizeof(rsp);

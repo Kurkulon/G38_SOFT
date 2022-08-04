@@ -66,6 +66,11 @@ u16 dCurMinMoveDetection = 200; // 1 mA
 
 byte solenoidState = 0;
 
+u16 impNomMoveOK = 0;
+u16 impNomMoveNo = 0;
+u16 impMaxMoveOK = 0;
+u16 impMaxMoveNo = 0;
+u16 impCount = 0;
 
 Rsp30 buf_rsp30[4] = {0};
 
@@ -337,6 +342,8 @@ static void UpdateSolenoid()
 				if (c)
 				{
 					dest_V80 = maxDestV80;
+
+					if (v80 <= (minDestV80+25))	impNomMoveNo++; else impMaxMoveNo++;
 				}
 				//else if (dCurMoveMin < 0)
 				//{
@@ -344,7 +351,9 @@ static void UpdateSolenoid()
 				//}
 				else
 				{
-					if (dest_V80 > minDestV80) dest_V80 -= 10; else if (dest_V80 < minDestV80) dest_V80 = minDestV80;
+					if (dest_V80 > minDestV80) dest_V80 -= 50; else if (dest_V80 < minDestV80) dest_V80 = minDestV80;
+
+					if (v80 <= (minDestV80+25))	impNomMoveOK++; else impMaxMoveOK++;
 				};
 
 				solenoidState++;
@@ -354,6 +363,8 @@ static void UpdateSolenoid()
 				tm.Reset();
 						
 				EnableV80();
+
+				impCount++;
 			};
 
 			break;
