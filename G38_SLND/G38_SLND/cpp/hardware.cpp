@@ -317,7 +317,7 @@ static void UpdateSolenoid()
 			{
 				if (avrdCurADC <= dCurMoveMin) dCurMoveMin = avrdCurADC, dCurMinTime = tm.GetTime(), tm2.Reset(); else if (tm2.Check(10) && dCurMinTime >= delayMoveDetection) dCurMinDetected = true, tm2.Reset();
 			}
-			else if (avrdCurADC > dCurMoveMax)
+			else if (avrdCurADC > dCurMinMoveDetection)
 			{
 				moveDetected = true;
 				moveStartTime = tm.GetTime();
