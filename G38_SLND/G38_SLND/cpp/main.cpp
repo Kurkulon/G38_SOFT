@@ -52,9 +52,9 @@ static u16 eepromWriteLen = 0;
 static u16 eepromReadLen = 0;
 static u16 eepromStartAdr = 0;
 
-static float avrAP1 = 0;
-static float avrAP2 = 0;
-static u16 AP = 0;
+static double avrAP1 = 0;
+static double avrAP2 = 0;
+static i16 AP = 0;
 static u16 dAP = 0;
 
 
@@ -156,7 +156,16 @@ static void UpdateAP()
 		u16 p = GetAP();
 		i16 t = temp;
 
-		float ap = (cal.P0 + cal.kP*p + (cal.T0+cal.kT*t) * (cal.dP0+cal.dkP*p)) / (1-(cal.dT0+cal.dkT*t)*(cal.dP0+cal.dkP*p));
+		double P0 = cal.P0;
+		double kP = cal.kP;
+		double T0 = cal.T0;
+		double kT = cal.kT;
+		double dP0 = cal.dP0;
+		double dkP = cal.dkP;
+		double dT0 = cal.dT0;
+		double dkT = cal.dkT;
+
+		double ap = P0 + kP*p + ((T0+kT*t) * (dP0+dkP*p)) / (1-(dT0+dkT*t)*(dP0+dkP*p));
 
 		ap *= 100;
 
