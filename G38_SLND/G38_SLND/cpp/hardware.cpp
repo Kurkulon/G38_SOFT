@@ -311,7 +311,7 @@ static void UpdateSolenoid()
 
 			if (!dCurMaxDetected)
 			{ 
-				if (avrdCurADC >= dCurMoveMax) dCurMoveMax = avrdCurADC, tm2.Reset(); else if (tm2.Check(20) && dCurMoveMax >= dCurMinMoveDetection) dCurMaxDetected = true, dCurMoveMin = dCurMoveMax, tm2.Reset();
+				if (avrdCurADC >= dCurMoveMax) dCurMoveMax = avrdCurADC, tm2.Reset(); else if (tm2.Check(5) && dCurMoveMax >= dCurMinMoveDetection) dCurMaxDetected = true, dCurMoveMin = dCurMoveMax, tm2.Reset();
 			}
 			else if (!dCurMinDetected)
 			{

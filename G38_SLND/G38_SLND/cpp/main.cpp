@@ -18,7 +18,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-const u16 verDevice = 0x201;
+const u16 verDevice = 0x202;
 const u16 buildNum = BUILDNUMVAR;
 
 //static u32 manCounter = 0;
