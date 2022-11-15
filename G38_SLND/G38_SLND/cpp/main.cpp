@@ -18,7 +18,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-const u16 verDevice = 0x202;
+const u16 verDevice = 0x203;
 const u16 buildNum = BUILDNUMVAR;
 
 //static u32 manCounter = 0;
@@ -66,12 +66,12 @@ static void ResetParams()
 
 	nvParams[n++] = numDevice = 11111;
 
-	SetMinDestV80				(nvParams[n++] = 700);
-	SetMaxDestV80				(nvParams[n++] = 800);
-	SetDelayMoveDetection		(nvParams[n++] = 30);
+	SetMinDestV80				(nvParams[n++] = 800);
+	SetMaxDestV80				(nvParams[n++] = 900);
+	SetDelayMoveDetection		(nvParams[n++] = 20);
 	SetDifCurMinMoveDetection	(nvParams[n++] = 100);
 	SetDelayRetention			(nvParams[n++] = 10);
-	SetMinActiveTime			(nvParams[n++] = 200);
+	SetMinActiveTime			(nvParams[n++] = 100);
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

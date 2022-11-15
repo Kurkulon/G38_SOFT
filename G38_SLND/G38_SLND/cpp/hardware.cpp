@@ -47,7 +47,7 @@ u32 fvAP = 0;
 u16 curLow = 0; // 1 mA
 u16 vFlow = 0;
 u16 v80 = 0; // 0.1V
-u16 dest_V80 = 700; // 0.1V
+u16 dest_V80 = 900; // 0.1V
 bool enable_V80 = true;
 u16 minDestV80 = 450; // 0.1V
 u16 maxDestV80 = 750; // 0.1V
@@ -62,7 +62,7 @@ u16 solenoidActiveTime = 0; // 0.1 ms
 u16 minActiveTime = 60; // 0.1 ms
 u16 delayRetention = 5;	// 0.1 ms
 u16 delayMoveDetection = 75;	// 0.1 ms
-u16 dCurMinMoveDetection = 200; // 1 mA
+i16 dCurMinMoveDetection = 200; // 1 mA
 
 byte solenoidState = 0;
 
@@ -230,7 +230,7 @@ inline void DisableDriver()
 
 void OpenValve(bool forced)
 {
-	if (solenoidState < 1 || solenoidState > 3)
+	if (solenoidState < 1 || solenoidState > 6)
 	{
 		startOpenTime = GetMilliseconds();
 
@@ -242,11 +242,11 @@ void OpenValve(bool forced)
 
 void CloseValve(bool forced)
 {
-	if (solenoidState != 4 && solenoidState != 5)
+	if (solenoidState < 7)
 	{
 		DisableDriver();
 
-		solenoidState = 4;
+		solenoidState = 7;
 	};
 }
 
@@ -254,21 +254,12 @@ void CloseValve(bool forced)
 
 static void UpdateSolenoid()
 {
-	//u32 tacho, t;
 	static MTM32 tm, tm2;//, tm3;
-//	static i32 prevshaftPos = 0;
-//	static u32 t = 500;
-//	static i32 cnt = 0;
 
 	static bool moveDetected = false;
-	static bool dCurMaxDetected = false;
-	static bool dCurMinDetected = false;
 	static u32 moveStartTime = 0;
-	//static u32 moveDeadTime = 0;
 	static i16 dCurMoveMax = 0;
 	static i16 dCurMoveMin = 0;
-	//static i16 dCurMoveThr = 0;
-	//static u32 timeout = 0;
 	static u32 dCurMinTime = 0;
 
 	bool c;
@@ -291,14 +282,9 @@ static void UpdateSolenoid()
 
 			sumCur = 0;
 			startOpenVoltage = v80;
-			dCurMaxDetected = false;
-			dCurMinDetected = false;
 			moveDetected = false;
 			moveStartTime = 0;
-			//moveDeadTime = (v80 > 400) ? (delayMoveDetection*400/v80) : delayMoveDetection;
-			//timeout = moveDeadTime * 2; if (timeout < minActiveTime) timeout = minActiveTime;
 			dCurMoveMax = 0;
-			//dCurMoveThr = 0;
 			dCurMinTime = 0;
 
 			startRsp30 = true;
@@ -307,25 +293,65 @@ static void UpdateSolenoid()
 
 			break;
 
-		case 2: // Открытие
+		case 2: // Открытие. Поиск первого максимума dI
 
-			if (!dCurMaxDetected)
-			{ 
-				if (avrdCurADC >= dCurMoveMax) dCurMoveMax = avrdCurADC, tm2.Reset(); else if (tm2.Check(5) && dCurMoveMax >= dCurMinMoveDetection) dCurMaxDetected = true, dCurMoveMin = dCurMoveMax, tm2.Reset();
-			}
-			else if (!dCurMinDetected)
+			if (tm.Timeout(minActiveTime))
 			{
-				if (avrdCurADC <= dCurMoveMin) dCurMoveMin = avrdCurADC, dCurMinTime = tm.GetTime(), tm2.Reset(); else if (tm2.Check(10) && dCurMinTime >= delayMoveDetection) dCurMinDetected = true, tm2.Reset();
+				solenoidState = 5;
+			}
+			else if (avrdCurADC >= dCurMoveMax) 
+			{
+				dCurMoveMax = avrdCurADC;
+				tm2.Reset(); 
+			}
+			else if (tm2.Check(5)/* && dCurMoveMax >= dCurMinMoveDetection*/) 
+			{
+				dCurMoveMin = dCurMoveMax;
+				tm2.Reset();
+
+				solenoidState++;
+			};
+
+			break;
+
+		case 3: // Открытие. Поиск минимума dI
+
+			if (tm.Timeout(minActiveTime))
+			{
+				solenoidState = 5;
+			}
+			else if (avrdCurADC <= dCurMoveMin)
+			{
+				dCurMoveMin = avrdCurADC;
+				dCurMinTime = tm.GetTime();
+				tm2.Reset(); 
+			}
+			else if (tm2.Check(10) && dCurMinTime >= delayMoveDetection)
+			{
+				tm2.Reset();
+				solenoidState++;
+			};
+
+			break;
+
+		case 4: // Открытие. Поиск превышения порога dI
+
+			if (tm.Timeout(minActiveTime))
+			{
+				solenoidState = 5;
 			}
 			else if (avrdCurADC > dCurMinMoveDetection)
 			{
 				moveDetected = true;
 				moveStartTime = tm.GetTime();
+				solenoidState++;
 			};
 
-			c = tm.Timeout(minActiveTime);
+			break;
 
-			if (c || (moveDetected && tm.Timeout(moveStartTime+delayRetention))) //(c || (moveDetected && (tm.Timeout(moveStartTime+delayRetention) && dCurADC > (dCurMoveThr*2))))
+		case 5: // Открытие. Поиск минимума dI
+
+			if (!moveDetected || (moveDetected && tm.Timeout(moveStartTime+delayRetention)))
 			{
 				SetDutyPWM(0);
 
@@ -339,16 +365,12 @@ static void UpdateSolenoid()
 					energy = (sum / 2) * dV / 1024;
 				};
 
-				if (c)
+				if (!moveDetected)
 				{
 					dest_V80 = maxDestV80;
 
 					if (v80 <= (minDestV80+25))	impNomMoveNo++; else impMaxMoveNo++;
 				}
-				//else if (dCurMoveMin < 0)
-				//{
-				//	if (dest_V80 <= maxDestV80) dest_V80 += 50; else if (dest_V80 > maxDestV80) dest_V80 = maxDestV80;
-				//}
 				else
 				{
 					if (dest_V80 > minDestV80) dest_V80 -= 50; else if (dest_V80 < minDestV80) dest_V80 = minDestV80;
@@ -369,7 +391,7 @@ static void UpdateSolenoid()
 
 			break;
 
-		case 3: // Открыт
+		case 6: // Открыт
 
 			if (tm.Check(10))
 			{
@@ -380,7 +402,7 @@ static void UpdateSolenoid()
 
 			break;
 
-		case 4: // Старт закрытия
+		case 7: // Старт закрытия
 
 			tm.Reset();
 
@@ -392,7 +414,7 @@ static void UpdateSolenoid()
 
 			break;
 
-		case 5: // Закрыт
+		case 8: // Закрыт
  
 			if (tm.Check(200000))
 			{
@@ -657,18 +679,20 @@ void InitHardware()
 
 	SYSCON->SYSAHBCLKCTRL |= HW::CLK::WWDT_M;
 	SYSCON->PDRUNCFG &= ~(1<<6); // WDTOSC_PD = 0
-	SYSCON->WDTOSCCTRL = (1<<5)|59; // 600kHz/60 = 10kHz = 0.1ms
 
 #ifndef _DEBUG
 
+	SYSCON->WDTOSCCTRL = (1<<5)|29; // 600kHz/60 = 10kHz = 0.1ms
 	WDT->TC = 250; // * 0.4ms
 	WDT->MOD = 0x3;
 	ResetWDT();
 
 #else
 
+	//SYSCON->WDTOSCCTRL = 0; 
 	ResetWDT();
 	WDT->MOD = 0;
+	//WDT->TC = 250;
 	ResetWDT();
 
 #endif

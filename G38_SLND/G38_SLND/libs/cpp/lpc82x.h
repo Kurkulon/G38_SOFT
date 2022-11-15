@@ -878,7 +878,7 @@ namespace HW
 	MK_PTR(GPIO,			0xA0000000);
 	MK_PTR(PIN_INT,			0xA0004000);
 
-	inline void ResetWDT() { WDT->FEED = 0xAA; WDT->FEED = 0x55;}
+	inline void ResetWDT() { __disable_irq(); WDT->FEED = 0xAA; __nop(); WDT->FEED = 0x55; __enable_irq(); }
 
 
 	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
