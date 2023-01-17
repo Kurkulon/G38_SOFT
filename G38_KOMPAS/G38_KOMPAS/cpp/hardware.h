@@ -17,7 +17,7 @@ struct SHAFTPOS
 
 };
 
-struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; };
+struct Rsp30 { Rsp30 *next; struct Rsp { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; } rsp; };
 
 extern void InitHardware();
 extern void UpdateHardware();
@@ -37,8 +37,11 @@ extern void SetDutyPWM(u16 v);
 extern void OpenValve(bool forced = false);
 extern void CloseValve(bool forced = false);
 extern Rsp30* GetRsp30();
+extern void FreeRsp30(Rsp30* r);
 
-extern byte motorState;
+enum MOTOSTATE { IDLE = 0, CLOSING, CLOSE_OK, CLOSE_ERR, OPENING, OPEN_OK, OPEN_ERR, CAL_1, CAL_2, CAL_3, CAL_4, CAL_START, CAL_6 };
+
+extern MOTOSTATE motorState;
 extern SHAFTPOS closeShaftPos;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -114,8 +117,8 @@ extern bool Check_TWI_ready();
 
 inline bool IsMotorIdle()
 {
-	extern byte motorState;
-	return motorState == 0 || motorState == 2 || motorState == 4;
+	//extern MOTOSTATE motorState;
+	return motorState == IDLE || motorState == OPEN_OK || motorState == OPEN_ERR || motorState == CLOSE_OK || motorState == CLOSE_ERR;
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -177,11 +180,11 @@ inline u16 GetMaxCurrent()
 
 inline bool CalibrateShaftPos()
 {
-	extern byte motorState;
+	//extern MOTOSTATE motorState;
 
 	if (IsMotorIdle())
 	{
-		motorState = 5;
+		motorState = CAL_1;
 		return true;
 	};
 
@@ -192,9 +195,9 @@ inline bool CalibrateShaftPos()
 
 inline bool InitShaftPos()
 {
-	extern byte motorState;
+	//extern MOTOSTATE motorState;
 
-	motorState = 9;
+	motorState = CAL_START;
 	return true;
 }
 

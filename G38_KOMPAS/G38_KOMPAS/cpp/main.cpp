@@ -381,6 +381,8 @@ static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	if (wb == 0 || len != 1) return false;
 
+	if (rsp_30 != 0) FreeRsp30(rsp_30);
+
 	rsp_30 = GetRsp30();
 
 	if (rsp_30 == 0)
@@ -394,8 +396,8 @@ static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	}
 	else
 	{
-		wb->data = rsp_30;
-		wb->len = sizeof(*rsp_30) - sizeof(rsp_30->data) + rsp_30->sl*2;
+		wb->data = &rsp_30->rsp;
+		wb->len = sizeof(rsp_30->rsp) - sizeof(rsp_30->rsp.data) + rsp_30->rsp.sl*2;
 	};
 
 	return true;
@@ -609,7 +611,10 @@ static void UpdateMan()
 			{
 				if (rsp_30 != 0)
 				{
-					rsp_30->rw = 0;
+					rsp_30->rsp.rw = 0;
+
+					FreeRsp30(rsp_30);
+
 					rsp_30 = 0;
 				};
 
@@ -854,11 +859,6 @@ int main()
 {
 	SEGGER_RTT_WriteString(0, RTT_CTRL_TEXT_WHITE "main() start ...\n");
 
-	static bool c = true;
-
-	TM32 tm;
-//	Dbt db(100);
-
 //	__breakpoint(0);
 
 	InitHardware();
@@ -867,89 +867,14 @@ int main()
 
 	com.Connect(ComPort::ASYNC, 100000, 2, 1);
 
-//	OpenValve(1000, -1);
-
-//	SetDutyPWMDir(100);
-
-	static byte i = 0;
-
-//	static i32 pwm = 100;
-
-//	static i32 dest =20;
-
-	tm.Reset();
-	tm.Reset();
-
-	//while (!tm.Check(5000))
-	//{
-	//	UpdateHardware();
-	//};
-
 	InitShaftPos();
 
 	while (1)
 	{
 		HW::GPIO->SET0 = 1<<12;
 
-//		UpdateMan();
-
-
 		UpdateMisc();
 
 		HW::GPIO->CLR0 = 1<<12;
-
-
-//		SetDutyPWMDir(sin(GetMilliseconds()*3.14/9000)*1200);
-
-//		if (tm.Check(5000))
-		{
-//			SetDutyPWMDir(pwm = -pwm);
-//			SetDestShaftPos(dest = -dest);
-		};
-
-
-//		switch (i)
-//		{
-//			case 0: 
-//
-//				if (IsMotorIdle())
-//				{
-//					if (c)
-//					{
-//						OpenValve();
-//					}
-//					else
-//					{
-//						CloseValve();
-//					};
-//
-//					c = !c;
-//
-//					i++;
-//				};
-//
-//				break;
-//
-//			case 1:
-//
-//				if (IsMotorIdle())
-//				{
-//					tm.Reset();
-//					i++;
-//				};
-//
-//				break;
-//
-//			case 2:
-//
-//				if (tm.Check((!c)?500:500))
-//				{
-////					SetDutyPWMDir(pwm = -pwm);
-//					i = 0;
-//				};
-//
-//				break;
-//		}; // switch (i)
-
 	}; // while (1)
 }
