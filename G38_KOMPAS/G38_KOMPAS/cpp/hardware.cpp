@@ -15,7 +15,7 @@
 #define CUR_CAL_MAXON		600
 #define CUR_CAL_FAULHABER	300
 
-#define CUR_LIM_MAXON		1000
+#define CUR_LIM_MAXON		600
 #define CUR_LIM_FAULHABER	600
 #define MAXCNT 50				// Компенсация датчиков Холла
 #define CLOSECURRENT 200		// Номинальный ток в closeShaftPos

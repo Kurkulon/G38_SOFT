@@ -47,6 +47,8 @@
 #define PIN_LIN2			21
 #define PIN_LIN3			22
 #define PIN_FAULT			23
+#define PIN_CHSW			4
+#define PIN_PULSE			15
 
 #define DHU					(1UL<<PIN_DHU)
 #define DHV					(1UL<<PIN_DHV)
@@ -59,6 +61,8 @@
 #define HIN3				(1UL<<PIN_HIN3)
 #define ENABLE				(1UL<<PIN_ENABLE)
 #define FAULT				(1UL<<PIN_FAULT)
+#define CHSW				(1UL<<PIN_CHSW)
+#define PULSE				(1UL<<PIN_PULSE)
 
 #define PIN_ISEN			7
 #define PIN_AP				6
@@ -72,7 +76,7 @@
 // ++++++++++++++	PIO INIT	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 																					// 1  8 7  4 3  0 9  6 5  2 1  8 7  4 3  0
-#define GPIO_INIT_DIR0		RTS0|ENABLE|LIN1|HIN1|LIN2|HIN2|LIN3|HIN3|ISP			// 0000 1101 0111 1110 0101 0000 0000 0000	
+#define GPIO_INIT_DIR0		CHSW|RTS0|ENABLE|LIN1|HIN1|LIN2|HIN2|LIN3|HIN3|ISP		// 0000 1101 0111 1110 0101 0000 0000 0000	
 #define GPIO_INIT_PIN0		LIN1|HIN1|LIN2|HIN2|LIN3|HIN3							// 0000 0000 0111 1110 0100 0000 0000 0000
 
 
