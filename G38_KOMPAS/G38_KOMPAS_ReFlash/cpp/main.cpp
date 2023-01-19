@@ -74,7 +74,7 @@ struct Request
 	union
 	{
 		struct { u32 func; u32 len;										u16 align; u16 crc; }	F1; // Get CRC
-		struct { u32 func; u32 sadr;									u16 align; u16 crc; }	F2; // Erase sector
+		struct { u32 func;												u16 align; u16 crc; }	F2; // Exit boot loader
 		struct { u32 func; u32 padr; u32 plen; u32 pdata[PAGEDWORDS];	u16 align; u16 crc; }	F3; // Programm page
 	};
 };
@@ -86,7 +86,7 @@ struct Response
 	union
 	{
 		struct { u32 func; u32 pageLen;	u32 len;	u16 sCRC;	u16 crc; }	F1; // Get CRC
-		struct { u32 func; u32 sadr;	u32 status; u16 align;	u16 crc; } 	F2; // Erase sector
+		struct { u32 func;							u16 align;	u16 crc; } 	F2; // Exit boot loader
 		struct { u32 func; u32 padr;	u32 status; u16 align;	u16 crc; } 	F3; // Programm page
 	};
 };
@@ -591,7 +591,7 @@ static bool UpdateProgramSector(bool start)
 			{
 				rb.data = &rsp;
 				rb.maxLen = sizeof(rsp.F3);
-				com1.Read(&rb, 100, 1);
+				com1.Read(&rb, 200, 1);
 				i++;
 			};
 
@@ -780,10 +780,13 @@ static void UpdateCom()
 
 			if (!com1.Update())
 			{
-				if (rb.recieved && rb.len == sizeof(rspHS) && GetCRC16(&rspHS, sizeof(rspHS)) == 0 && rspHS.guid == slaveGUID)
+				if (rb.recieved)
 				{
-					pt = GetTickCount();
-					i++;
+					if (rb.len == sizeof(rspHS) && GetCRC16(&rspHS, sizeof(rspHS)) == 0 && rspHS.guid == slaveGUID)
+					{
+						pt = GetTickCount();
+						i++;
+					};
 				}
 				else
 				{
@@ -819,7 +822,7 @@ static void UpdateCom()
 			{
 				rb.data = &rsp;
 				rb.maxLen = sizeof(rsp.F1);
-				com1.Read(&rb, 100, 2);
+				com1.Read(&rb, 20, 2);
 				i++;
 			};
 
