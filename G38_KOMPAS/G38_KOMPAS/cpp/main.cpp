@@ -1,9 +1,10 @@
 #include "hardware.h"
-#include "time.h"
-#include "ComPort.h"
-#include "crc16.h"
+#include <time.h>
+#include <ComPort.h>
+#include <crc16.h>
 #include <math.h>
 #include <SEGGER_RTT.h>
+#include <i2c.h>
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -14,7 +15,8 @@ u32 fps = 0;
 
 //static byte sec = 0;
 
-static ComPort com(USART0_USIC_NUM, ~0, PIN_UTX0, PIN_URX0, PIN_RTS0);
+static ComPort	com(USART0_USIC_NUM, ~0, PIN_UTX0, PIN_URX0, PIN_RTS0);
+static S_I2C	i2c(I2C2_USIC_NUM, PIN_SCL, PIN_SDA, MCK);
 
 static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
@@ -146,7 +148,7 @@ static void UpdateTemp()
 {
 	static byte i = 0;
 
-	static DSCTWI dsc;
+	static DSCI2C dsc;
 	static byte reg = 0;
 	static u16 rbuf = 0;
 	static byte *romData = 0;
@@ -207,7 +209,7 @@ static void UpdateTemp()
 				dsc.wlen2 = 0;
 
 
-				if (Write_TWI(&dsc))
+				if (i2c.AddRequest(&dsc))
 				{
 					i++;
 				};
@@ -217,7 +219,7 @@ static void UpdateTemp()
 
 		case 1:
 
-			if (Check_TWI_ready())
+			if (dsc.ready)
 			{
 				temp = ((i16)ReverseWord(rbuf) + 64) / 128;
 
@@ -238,7 +240,7 @@ static void UpdateTemp()
 			dsc.rlen = 0;
 			dsc.adr = 0x50;
 
-			if (Write_TWI(&dsc))
+			if (i2c.AddRequest(&dsc))
 			{
 				tm.Reset();
 
@@ -249,7 +251,7 @@ static void UpdateTemp()
 
 		case 3:
 
-			if (Check_TWI_ready())
+			if (dsc.ready)
 			{
 				tm.Reset();
 
@@ -291,7 +293,7 @@ static void UpdateTemp()
 			dsc.rlen = romRdLen;
 			dsc.adr = 0x50;
 
-			if (Read_TWI(&dsc))
+			if (i2c.AddRequest(&dsc))
 			{
 				tm.Reset();
 
@@ -302,7 +304,7 @@ static void UpdateTemp()
 
 		case 6:
 
-			if (Check_TWI_ready())
+			if (dsc.ready)
 			{
 				eepromReadLen = 0;
 
@@ -863,7 +865,9 @@ int main()
 
 	InitHardware();
 
-	Init_TWI();
+	//Init_TWI();
+
+	i2c.Connect(400000);
 
 	com.Connect(ComPort::ASYNC, 100000, 2, 1);
 

@@ -293,44 +293,8 @@ inline void DisableCapSwitch()
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static __irq void IntDummyHandler()
-{
-	__breakpoint(0);
-}
-
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-static __irq void HardFaultHandler()
-{
-	__breakpoint(0);
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static __irq void ExtDummyHandler()
-{
-	__breakpoint(0);
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-static void InitVectorTable()
-{
-	for (u32 i = 0; i < ArraySize(VectorTableInt); i++)
-	{
-		VectorTableInt[i] = IntDummyHandler;
-	};
-
-	for (u32 i = 0; i < ArraySize(VectorTableExt); i++)
-	{
-		VectorTableExt[i] = ExtDummyHandler;
-	};
-
-	VectorTableInt[3] = HardFaultHandler;
-
-	CM0::SCB->VTOR = (u32)VectorTableInt;
-}
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1125,7 +1089,6 @@ void InitHardware()
 {
 	using namespace HW;
 
-	InitVectorTable();
 	Init_time(MCK);
 	InitADC();
 	InitPWM();
