@@ -591,7 +591,7 @@ static void UpdateMan()
 				{
 					if (RequestMan(&wb, &rb))
 					{
-						com.Write(&wb, US2COM(20));
+						com.Write(&wb, US2COM(11));
 						i++;
 					}
 					else

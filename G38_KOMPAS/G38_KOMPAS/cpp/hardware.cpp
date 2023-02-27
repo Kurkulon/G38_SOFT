@@ -11,17 +11,17 @@
 #define LOCK_CLOSE_POSITION 0
 #define INIT_CLOSE_POSITION 0
 #define OPEN_POSITION		30
-#define OPEN_RAND_MASK		7
+#define OPEN_RAND_MASK		3
 #define CUR_CAL_MAXON		600
-#define CUR_CAL_FAULHABER	300
+//#define CUR_CAL_FAULHABER	300
 
 #define CUR_LIM_MAXON		600
-#define CUR_LIM_FAULHABER	600
-#define MAXCNT 50				// Компенсация датчиков Холла
-#define CLOSECURRENT 200		// Номинальный ток в closeShaftPos
-#define CLOSEDELTA 2			// 
+//#define CUR_LIM_FAULHABER	600
+//#define MAXCNT 50				// Компенсация датчиков Холла
+//#define CLOSECURRENT 200		// Номинальный ток в closeShaftPos
+//#define CLOSEDELTA 2			// 
 #define CFK 256					// 
-static u16 CSD = 5;					// 
+static u16 CSD = 10;					// 
 static u16 DCL = CSD+3;				// удержание в закрытом положении
 
 //u16 curHV = 0;
@@ -616,7 +616,7 @@ static void UpdateMotor()
 
 				motorState = OPEN_ERR;
 			}
-			else if ((openShaftPos - shaftPos) <= 1/* && tm.Timeout(50)*/)
+			else if ((openShaftPos - shaftPos) <= 5/* && tm.Timeout(50)*/)
 			{
 				//SetDestShaftPos(openShaftPos);
 
