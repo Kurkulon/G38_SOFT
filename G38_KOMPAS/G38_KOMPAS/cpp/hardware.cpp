@@ -21,8 +21,8 @@
 //#define CLOSECURRENT 200		// Номинальный ток в closeShaftPos
 //#define CLOSEDELTA 2			// 
 #define CFK 256					// 
-static u16 CSD = 10;					// 
-static u16 DCL = CSD+3;				// удержание в закрытом положении
+const u16 CSD = 4;					// 
+const u16 DCL = CSD+3;				// удержание в закрытом положении
 
 //u16 curHV = 0;
 //u16 reqHV = 800;
@@ -539,7 +539,7 @@ static void UpdateMotor()
 
 				motorState = CLOSE_ERR;
 			}
-			else if ((shaftPos - closeShaftPos) <= (CSD/2) && tm.Timeout(20) || shaftPos <= closeShaftPos)
+			else if ((shaftPos - closeShaftPos) <= CSD && tm.Timeout(20) || shaftPos <= closeShaftPos)
 			{
 				tm2.Reset();
 
