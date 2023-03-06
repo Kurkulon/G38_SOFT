@@ -9,6 +9,9 @@
 #include <windows.h>
 #endif
 
+#define US2COM(x) (((u64)(x)*MCK+500000)/1000000)
+#define MS2COM(x) (((u64)(x)*MCK+500)/1000)
+
 class ComPort
 {
   public:

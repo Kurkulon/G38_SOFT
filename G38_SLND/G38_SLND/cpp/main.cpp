@@ -18,7 +18,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-const u16 verDevice = 0x203;
+const u16 verDevice = 0x204;
 const u16 buildNum = BUILDNUMVAR;
 
 //static u32 manCounter = 0;
@@ -541,7 +541,7 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0 || len < ((sizeof(cal)-2)/2)) return false;
+	if (wb == 0 || len != ((sizeof(cal)-2)/2)) return false;
 
 	u16 *p = (u16*)&cal.rw;
 
@@ -631,7 +631,7 @@ static void UpdateMan()
 
 			rb.data = buf;
 			rb.maxLen = sizeof(buf);
-			com.Read(&rb, (u32)-1, 10000);
+			com.Read(&rb, ~0, US2COM(200));
 			i++;
 
 			break;

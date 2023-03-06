@@ -8,19 +8,11 @@
 #include <windows.h>
 #endif
 
-//struct SHAFTPOS
-//{
-//	i32 pos;
-//
-//	SHAFTPOS() : pos(0) {}
-////	SHAFTPOS(i32 v) : pos(v) {}
-//
-//	operator i32() { return pos >> 8; }
-//	i32 operator=(i32 v) { pos = v<<8; return v; }
-//	i32 operator+=(i32 v) { return (pos += v<<8)>>8; }
-//	i32 operator-=(i32 v) { return (pos -= v<<8)>>8; }
-//
-//};
+#define NS2CLK(x) (((u64)(x)*MCK+500000000)/1000000000)
+#define US2CLK(x) (((u64)(x)*MCK+500000)/1000000)
+#define MS2CLK(x) (((u64)(x)*MCK+500)/1000)
+
+
 extern u16 impNomMoveOK;
 extern u16 impNomMoveNo;
 extern u16 impMaxMoveOK;
