@@ -18,7 +18,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-const u16 verDevice = 0x204;
+const u16 verDevice = 0x205;
 const u16 buildNum = BUILDNUMVAR;
 
 //static u32 manCounter = 0;
@@ -479,7 +479,7 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	cal.rw = manReqWord|0x70;	// 	1. ответное слово
 
 	wb->data = &cal;
-	wb->len = sizeof(cal)-2;
+	wb->len = sizeof(cal);
 
 	return true;
 }
@@ -541,7 +541,7 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0 || len != ((sizeof(cal)-2)/2)) return false;
+	if (wb == 0 || len != (sizeof(cal)/2) || GetCRC16(data+1, len-1) != 0) return false;
 
 	u16 *p = (u16*)&cal.rw;
 
@@ -701,7 +701,7 @@ static void UpdateLoadSave()
 				adr = 0;
 				count = 4;
 
-				cal.crc = GetCRC(&cal, sizeof(cal) - 2);
+				cal.crc = GetCRC(((byte*)&cal)+sizeof(cal.rw), sizeof(cal) - sizeof(cal.rw) - sizeof(cal.crc));
 
 				i = 3;
 			}
@@ -739,7 +739,9 @@ static void UpdateLoadSave()
 
 			if (Check_EEPROM_Ready())
 			{
-				if (GetCRC(&cal, sizeof(cal)) != 0)
+				byte *p = (byte*)&cal;
+
+				if (GetCRC(p+sizeof(cal.rw), sizeof(cal)-sizeof(cal.rw)) != 0)
 				{
 					adr += sizeof(cal);
 					count -= 1;
