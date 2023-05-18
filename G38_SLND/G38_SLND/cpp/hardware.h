@@ -19,12 +19,12 @@ extern u16 impMaxMoveOK;
 extern u16 impMaxMoveNo;
 extern u16 impCount;
 
-struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; };
+struct Rsp30 { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; u16 crc; };
 
 extern void InitHardware();
 extern void UpdateHardware();
-extern u16 GetCRC(const void *data, u32 len);
-extern u16 GetCRC_DMA(const void *data, u32 len);
+//extern u16 GetCRC(const void *data, u32 len);
+//extern u16 GetCRC_DMA(const void *data, u32 len);
 extern bool CkeckPulsePin();
 
 //extern void StartValve(bool dir, u32 tacho, u32 time, u16 lim);

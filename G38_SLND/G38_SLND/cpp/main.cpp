@@ -357,17 +357,16 @@ static void UpdateTemp()
 
 static bool RequestMan_00(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[4];
-
 	if (wb == 0 || len != 1) return false;
+
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
 	rsp[0] = manReqWord;
 	rsp[1] = numDevice;
 	rsp[2] = verDevice;
 	rsp[3] = buildNum;
 
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 8;
 
 	return true;
 }
@@ -376,9 +375,9 @@ static bool RequestMan_00(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[7];
-
 	if (wb == 0 || len != 1) return false;
+
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
 	rsp[0] = manReqWord|0x10;				// 	1. ответное слово
 	rsp[1] = GetMinDestV80();				//	2. Минимальное напряжение соленоида (0.1В) (30...90 В)
@@ -388,8 +387,7 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	rsp[5] = GetDelayRetention();			//	6. Задержка перехода в режим удержания после начала движения соленоида (0.1мс) (0...10 мс)
 	rsp[6] = GetMinActiveTime();			//	7. Минимальное время активного состояния соленоида (0.1мс) (0...20 мс)
 
-	wb->data = rsp;			 
-	wb->len = sizeof(rsp);	 
+	wb->len = 14;	 
 
 	return true;
 }
@@ -398,9 +396,9 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[15];
-
 	if (wb == 0 || len != 1) return false;
+
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
 	rsp[0]	= manReqWord|0x20;			//	1.Ответное слово (принятая команда)
 	rsp[1]	= GetAP();					//	2.Давление (у.е)
@@ -418,8 +416,7 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	rsp[13]	= impMaxMoveNo;				//	14. Импульсы, заряд после простоя, движение пропущено.
 	rsp[14]	= impCount;					//	15. Общее количество импульсов.
 
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 30;
 
 	return true;
 }
@@ -428,25 +425,25 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp0[4];
-
 	if (wb == 0 || len != 1) return false;
 
 	rsp_30 = GetRsp30();
 
 	if (rsp_30 == 0)
 	{
-		rsp0[0] = data[0];
-		rsp0[1] = 0;
-		rsp0[2] = 0;
-		rsp0[3] = 0;
-		wb->data = rsp0;
-		wb->len = sizeof(rsp0);
+		__packed u16 *rsp = (__packed u16*)wb->data;
+
+		rsp[0] = data[0];
+		rsp[1] = 0;
+		rsp[2] = 0;
+		rsp[3] = 0;
+
+		wb->len = 8;
 	}
 	else
 	{
 		wb->data = rsp_30;
-		wb->len = sizeof(*rsp_30) - sizeof(rsp_30->data) + rsp_30->sl*2;
+		wb->len = sizeof(*rsp_30) - sizeof(rsp_30->data) - sizeof(rsp_30->crc) + rsp_30->sl*2;
 	};
 
 	return true;
@@ -456,15 +453,14 @@ static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_40(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-//	static u16 rsp[1];
-
 	if (wb == 0 || len != 1) return false;
 
 	CalibrateShaftPos();
 
-	data[0] = manReqWord|0x40;	// 	1. ответное слово
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
-	wb->data = data;			 
+	rsp[0] = manReqWord|0x40;	// 	1. ответное слово
+
 	wb->len = 2;	 
 
 	return true;
@@ -479,7 +475,7 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	cal.rw = manReqWord|0x70;	// 	1. ответное слово
 
 	wb->data = &cal;
-	wb->len = sizeof(cal);
+	wb->len = sizeof(cal)-2;
 
 	return true;
 }
@@ -488,8 +484,6 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_80(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
-
 	if (wb == 0 || len != 3) return false;
 
 	switch (data[1])
@@ -501,10 +495,11 @@ static bool RequestMan_80(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 			break;
 	};
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0x80;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -513,8 +508,6 @@ static bool RequestMan_80(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
-
 	if (wb == 0 || len != 3) return false;
 
 	switch (data[1])
@@ -527,10 +520,11 @@ static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 		case 5:	SetMinActiveTime(data[2]);				break;	//0x05 - Минимальное время активного состояния соленоида (0.1мс) (0...20 мс)
 	};
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0x90;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -539,9 +533,7 @@ static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
-
-	if (wb == 0 || len != (sizeof(cal)/2) || GetCRC16(data+1, len-1) != 0) return false;
+	if (wb == 0 || len != (sizeof(cal)/2-1)) return false;
 
 	u16 *p = (u16*)&cal.rw;
 
@@ -552,10 +544,11 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	saveCal = true;
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0xE0;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -564,16 +557,15 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_F0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
-
 	if (wb == 0 || len != 1) return false;
 
 	SaveParams();
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0xF0;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -623,7 +615,8 @@ static void UpdateMan()
 	static byte i = 0;
 	static ComPort::WriteBuffer wb;
 	static ComPort::ReadBuffer rb;
-	static byte buf[1024];
+	static byte buf[512];
+	static u16 rspbuf[256];
 
 	switch(i)
 	{
@@ -640,10 +633,20 @@ static void UpdateMan()
 
 			if (!com.Update())
 			{
-				if (rb.recieved && rb.len > 0)
+				if (rb.recieved && rb.len >= 4 && GetCRC16(rb.data, rb.len) == 0)
 				{
+					rb.len -= 2;
+
+					wb.data = rspbuf;
+					wb.len = sizeof(rspbuf);
+
 					if (RequestMan(&wb, &rb))
 					{
+						DataPointer p(wb.data);
+						p.b += wb.len;
+						p.w[0] = GetCRC16(wb.data, wb.len);
+						wb.len += 2;
+
 						com.Write(&wb);
 						i++;
 					}
@@ -701,7 +704,7 @@ static void UpdateLoadSave()
 				adr = 0;
 				count = 4;
 
-				cal.crc = GetCRC(((byte*)&cal)+sizeof(cal.rw), sizeof(cal) - sizeof(cal.rw) - sizeof(cal.crc));
+				cal.crc = GetCRC16(&cal, sizeof(cal) - sizeof(cal.crc));
 
 				i = 3;
 			}
@@ -719,7 +722,7 @@ static void UpdateLoadSave()
 
 				u16 n = ArraySize(nvParams) - 1;
 
-				nvParams[n] = GetCRC(nvParams, sizeof(nvParams) - 2);
+				nvParams[n] = GetCRC16(nvParams, sizeof(nvParams) - 2);
 
 				i = 7;
 			};
@@ -741,7 +744,7 @@ static void UpdateLoadSave()
 			{
 				byte *p = (byte*)&cal;
 
-				if (GetCRC(p+sizeof(cal.rw), sizeof(cal)-sizeof(cal.rw)) != 0)
+				if (GetCRC16(p, sizeof(cal)) != 0)
 				{
 					adr += sizeof(cal);
 					count -= 1;
@@ -822,7 +825,7 @@ static void UpdateLoadSave()
 
 			if (Check_EEPROM_Ready())
 			{
-				if (GetCRC(nvParams, sizeof(nvParams)) != 0)
+				if (GetCRC16(nvParams, sizeof(nvParams)) != 0)
 				{
 					adr += sizeof(nvParams);
 					count -= 1;

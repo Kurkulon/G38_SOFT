@@ -53,6 +53,8 @@ extern "C" void SystemInit()
 
 	HW::GPIO->NOT0 = ISP;
 
+	if ((u32)MCK <= 30000000) HW::FLASHCTRL->FLASHCFG &= ~3;
+
 //	SYSCON->SYSAHBCLKDIV  = SYSAHBCLKDIV_Val;
 
 	SYSCON->UARTCLKDIV = 1;
