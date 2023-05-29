@@ -15,19 +15,19 @@
 	</ToolFiles>
 	<Configurations>
 		<Configuration
-			Name="Debug|Win32"
+			Name="LPC824_Debug|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="0"
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="wmake -h version=Debug"
-				ReBuildCommandLine="wmake -h -a version=Debug"
+				BuildCommandLine="wmake -h version=Debug targetcpu=LPC824"
+				ReBuildCommandLine="wmake -h -a version=Debug targetcpu=LPC824"
 				CleanCommandLine="@del /Q .\Debug\*.*"
-				Output="$(OutDir)\msreg.axf"
-				PreprocessorDefinitions="_DEBUG,__softfp="
-				IncludeSearchPath="$(ProjectDir)..\G38LPC824\libs\cpp;$(ARMCC50INC);"
+				Output="$(OutDir)\G38_BOOT_SLND.axf"
+				PreprocessorDefinitions="_DEBUG,__softfp=,CPU_LPC824"
+				IncludeSearchPath="$(ProjectDir)..\..\..\G_LIBS_ARM\cpp\;$(ARMCC50INC);"
 				ForcedIncludes=""
 				AssemblySearchPath=""
 				ForcedUsingAssemblies=""
@@ -35,39 +35,19 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="Release|Win32"
+			Name="LPC824_Release|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="0"
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="wmake -h version=Release"
-				ReBuildCommandLine="wmake -h -a version=Release"
+				BuildCommandLine="wmake -h version=Release targetcpu=LPC824"
+				ReBuildCommandLine="wmake -h -a version=Release targetcpu=LPC824"
 				CleanCommandLine="@del /Q .\Release\*.*"
-				Output="$(OutDir)\msreg.axf"
-				PreprocessorDefinitions="__softfp="
-				IncludeSearchPath="$(ProjectDir)..\G38LPC824\libs\cpp;$(ARMCC50INC);"
-				ForcedIncludes=""
-				AssemblySearchPath=""
-				ForcedUsingAssemblies=""
-				CompileAsManaged=""
-			/>
-		</Configuration>
-		<Configuration
-			Name="Win32_Debug|Win32"
-			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="0"
-			>
-			<Tool
-				Name="VCNMakeTool"
-				BuildCommandLine="wmake -h version=Win32_Debug"
-				ReBuildCommandLine="wmake -h -a version=Win32_Debug"
-				CleanCommandLine="@del /Q $(OutDir)\*.*"
-				Output="$(OutDir)\msreg.exe"
-				PreprocessorDefinitions="_DEBUG,__softfp=,WIN32"
-				IncludeSearchPath="$(ProjectDir)..\G38LPC824\libs\cpp;$(ARMCC50INC);"
+				Output="$(OutDir)\G38_BOOT_SLND.axf"
+				PreprocessorDefinitions="__softfp=,CPU_LPC824"
+				IncludeSearchPath="$(ProjectDir)..\..\..\G_LIBS_ARM\cpp\;$(ARMCC50INC);"
 				ForcedIncludes=""
 				AssemblySearchPath=""
 				ForcedUsingAssemblies=""
@@ -105,13 +85,13 @@
 				RelativePath=".\cpp\hardware.h"
 				>
 			</File>
+			<File
+				RelativePath=".\cpp\hw_conf.h"
+				>
+			</File>
 		</Filter>
 		<File
 			RelativePath=".\makeobj"
-			>
-		</File>
-		<File
-			RelativePath=".\cpp\startup_LPC82x.s"
 			>
 		</File>
 	</Files>

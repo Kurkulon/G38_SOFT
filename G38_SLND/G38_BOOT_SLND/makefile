@@ -9,7 +9,7 @@ version = Release
 
 curdir = $+ $(%cdrive):$(%cwd) $-
 cppdir = cpp
-objdir = $(version)
+objdir = $(targetcpu)_$(version)
 
 ##################################################################################################
 
@@ -21,9 +21,9 @@ objdir = $(version)
 make : .SYMBOLIC
 	@call wmake -h -f mkmodules cppdir=$(cppdir)\ objdir=$(objdir)\
 !ifneq version Win32_Debug
-	@call wmake -h -f makedep version=$(version) cppdir=$(cppdir) objdir=$(objdir)
+	@call wmake -h -f makedep targetcpu=$(targetcpu) version=$(version) cppdir=$(cppdir) objdir=$(objdir)
 !endif
-	@call wmake $(__MAKEOPTS__) -f makeobj version=$(version) cppdir=$(cppdir) objdir=$(objdir)
+	@call wmake $(__MAKEOPTS__) -f makeobj targetcpu=$(targetcpu) version=$(version) cppdir=$(cppdir) objdir=$(objdir)
 
 
 ##################################################################################################

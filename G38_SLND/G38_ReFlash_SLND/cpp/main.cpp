@@ -9,8 +9,8 @@
 
 #include "types.h"
 
-#define SGUID	0x232D0C4C6C4E4955 
-#define MGUID	0x92DA09D11CAB1527 
+#define SGUID	0x232D0C4C6C4E4955	
+#define MGUID	0x92DA09D11CAB1527	
 
 const unsigned __int64 masterGUID = MGUID;
 const unsigned __int64 slaveGUID = SGUID;
@@ -19,19 +19,15 @@ const unsigned __int64 slaveGUID = SGUID;
 
 //#define BOOTSIZE 0x4000
 //#define FLASH0 (0x00400000+BOOTSIZE)
-#define PAGESIZE 64
+
+static u32 PAGESIZE = 512;
+#define PAGEDWORDS (1024>>2)
 
 static u32 flashPages[] = {
 #include "G38_SLND.bin.h"
 };
 
 
-
-// Pluton.cpp : Defines the entry point for the application.
-//
-
-
-//#include <fonts.h>
 
 HWND	hWnd;
 HWND	btAccept;
@@ -61,7 +57,7 @@ HBITMAP membm;
 
 static char pressedKey = 0;
 
-const char lpAPPNAME[] = "G38LPC824 Flash Loader";
+const char lpAPPNAME[] = "G38_SOLENOID Flash Loader";
 
 int screenWidth = 0, screenHeight = 0;
 
@@ -77,9 +73,9 @@ struct Request
 {
 	union
 	{
-		u32 func;
-		struct { u32 func; u32 padr; u32 page[PAGESIZE>>2]; u16 pad; u16 crc; } f1;
-		struct { u32 func; u32 data; u16 pad; u16 crc; } fx;
+		struct { u32 func; u32 len;										u16 align; u16 crc; }	F1; // Get CRC
+		struct { u32 func;												u16 align; u16 crc; }	F2; // Exit boot loader
+		struct { u32 func; u32 padr; u32 plen; u32 pdata[PAGEDWORDS];	u16 align; u16 crc; }	F3; // Programm page
 	};
 };
 
@@ -89,9 +85,9 @@ struct Response
 {
 	union
 	{
-		u32 func;
-		struct { u32 func; u32 padr; u32 status; u16 pad; u16 crc; } f1;
-		struct { u32 func; u32 padr; u32 status; u16 pad; u16 crc; } fx;
+		struct { u32 func; u32 pageLen;	u32 len;	u16 sCRC;	u16 crc; }	F1; // Get CRC
+		struct { u32 func;							u16 align;	u16 crc; } 	F2; // Exit boot loader
+		struct { u32 func; u32 padr;	u32 status; u16 align;	u16 crc; } 	F3; // Programm page
 	};
 };
 
@@ -108,7 +104,18 @@ static RspHS rspHS;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-void CreateRequest_01(Request* req);
+static u32 pageAdr = 0;
+//static u32 secLen = 0;
+static u16 secCRC = 0;
+static bool secProgOK = false;
+static u32 row = 0;
+static u32 count = ArraySize(flashPages);
+static u32 packetnum = 0;
+static u32 oknum = 0;
+static u32 errornum = 0;
+static u32 lenErrors = 0;
+static u32 crcErrors = 0;
+	static u32 pageErrors = 0;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -325,6 +332,325 @@ static void UpdateDisplay()
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*
+static bool UpdateCheckEraseSector(bool start)
+{
+	static byte i = 0;
+
+	static Request req;
+	static Response rsp;
+
+//	char buf[1024];
+
+	if (start)
+	{
+		i = 0;
+	};
+
+	switch(i)
+	{
+		case 0:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+			
+			req.F1.func = 1;
+			req.F1.sadr = pageAdr;
+			req.F1.len = sizeof(flashPages) - pageAdr;
+			req.F1.align += 1;
+
+			req.F1.crc = GetCRC16(&req, sizeof(req.F1) - sizeof(req.F1.crc));
+
+			wb.data = &req;
+			wb.len = sizeof(req.F1);
+	//		Sleep(5);
+			com1.Write(&wb);
+			i++;
+
+			break;
+
+		case 1:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (!com1.Update())
+			{
+				packetnum++;
+				rb.data = &rsp;
+				rb.maxLen = sizeof(rsp.F1);
+				com1.Read(&rb, 5000, 2);
+				i++;
+			};
+
+			break;
+
+		case 2:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (!com1.Update())
+			{
+				if (rb.recieved && rb.len == sizeof(rsp.F1) && rsp.F1.sadr == req.F1.sadr && GetCRC16(&rsp, sizeof(rsp.F1)) == 0)
+				{
+					oknum++;
+
+					secLen = rsp.F1.len;
+					secCRC = rsp.F1.sCRC;
+
+					if (sizeof(flashPages) <= pageAdr)
+					{
+						secLen = 0;
+					};
+
+					if (secLen > 0)
+					{
+						u32 l = sizeof(flashPages) - pageAdr;
+
+						if (secLen > l)
+						{
+							secLen = l;
+						};
+
+						u16 crc = GetCRC16(&flashPages[pageAdr/4], secLen);
+
+						Printf(10, 128+row*16, "Сектор: 0x%08lX, len:0x%08lX, CRC: 0x%04X  0x%04X", pageAdr, secLen, rsp.F1.sCRC, crc);
+
+						row += 1;
+
+						if (crc != rsp.F1.sCRC)
+						{
+							i++;
+						}
+						else
+						{
+							pageAdr += secLen;
+
+							if (sizeof(flashPages) <= pageAdr)
+							{
+								secLen = 0;
+
+								i = 255;
+							}
+							else
+							{
+								i = 0;
+							};
+						};
+					}
+					else
+					{
+						i = 255;
+					};
+				}
+				else
+				{
+					if (!rb.recieved)
+					{ 
+						errornum++; 
+					}
+					else if (rb.len != sizeof(rsp.F1))
+					{
+						lenErrors++;
+					}
+					else if (GetCRC16(&rsp, sizeof(rsp.F1)) != 0)
+					{
+						crcErrors++;
+					}
+					else if (rsp.F1.sadr != req.F1.sadr)
+					{
+						pageErrors++;
+					};
+
+					i = 0;
+				};
+			};
+
+			break;
+
+		case 3:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+			
+			req.F2.func = 2;
+			req.F2.sadr = pageAdr;
+			req.F2.align += 1;
+
+			req.F2.crc = GetCRC16(&req, sizeof(req.F2) - sizeof(req.F2.crc));
+
+			wb.data = &req;
+			wb.len = sizeof(req.F2);
+	//		Sleep(5);
+			com1.Write(&wb);
+			i++;
+
+			break;
+
+		case 4:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (!com1.Update())
+			{
+				packetnum++;
+				rb.data = &rsp;
+				rb.maxLen = sizeof(rsp.F2);
+				com1.Read(&rb, 3000, 2);
+				i++;
+			};
+
+			break;
+
+		case 5:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (!com1.Update())
+			{
+				if (rb.recieved && rb.len == sizeof(rsp.F2) && rsp.F2.sadr == req.F2.sadr && GetCRC16(&rsp, sizeof(rsp.F2)) == 0)
+				{
+					oknum++;
+
+					if (rsp.F2.status == 0)
+					{
+						secLen = 0;
+					};
+
+					i = 255;
+				}
+				else
+				{
+					if (!rb.recieved)
+					{ 
+						errornum++; 
+					}
+					else if (rb.len != sizeof(rsp.F2))
+					{
+						lenErrors++;
+					}
+					else if (GetCRC16(&rsp, sizeof(rsp.F2)) != 0)
+					{
+						crcErrors++;
+					}
+					else if (rsp.F2.sadr != req.F2.sadr)
+					{
+						pageErrors++;
+					};
+
+					i = 3;
+				};
+			};
+
+			break;
+
+	};
+
+	return (i < 10);
+}
+*/
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+static bool UpdateProgramSector(bool start)
+{
+	static byte i = 0;
+
+	static Request req;
+	static Response rsp;
+
+	u32 *p;
+
+//	char buf[1024];
+
+	if (start)
+	{
+		i = 0;
+	};
+
+	switch(i)
+	{
+		case 0:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		{	
+			req.F3.func = 3;
+			req.F3.padr = pageAdr;
+			req.F3.align += 1;
+
+			p = &flashPages[pageAdr/4];
+
+			for (u32 j = 0, t = (sizeof(flashPages)-pageAdr)/4; j < (PAGESIZE>>2); j++, t--)
+			{
+				req.F3.pdata[j] = (t > 0) ? p[j] : 0;
+			};
+
+			req.F3.plen = PAGESIZE;
+
+			DataPointer pd(req.F3.pdata);
+
+			pd.b += PAGESIZE + sizeof(req.F3.align);
+
+			*(pd.w++) = GetCRC16(&req, (u32)(pd.b - (byte*)&req));
+
+			wb.data = &req;
+			wb.len = (u16)(pd.b - (byte*)&req);
+			Sleep(3);
+			com1.Write(&wb);
+			i++;
+
+			break;
+		};
+
+		case 1:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (!com1.Update())
+			{
+				rb.data = &rsp;
+				rb.maxLen = sizeof(rsp.F3);
+				com1.Read(&rb, 200, 1);
+				i++;
+			};
+
+			break;
+
+		case 2:	//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+			if (!com1.Update())
+			{
+				if (rb.recieved && rb.len == sizeof(rsp.F3) && rsp.F3.padr == req.F3.padr && GetCRC16(&rsp, sizeof(rsp.F3)) == 0)
+				{
+					oknum++;
+
+					if (rsp.F3.status != 0)
+					{
+						pageAdr += PAGESIZE;
+
+						secProgOK = true;
+
+						i = (pageAdr >= sizeof(flashPages)) ? 255 : 0; 
+					}
+					else
+					{
+						secProgOK = false;
+
+						i = 255;
+					};
+				}
+				else
+				{
+					if (!rb.recieved)
+					{ 
+						errornum++; 
+					}
+					else if (rb.len != sizeof(rsp.F3))
+					{
+						lenErrors++;
+					}
+					else if (GetCRC16(&rsp, sizeof(rsp.F3)) != 0)
+					{
+						crcErrors++;
+					}
+					else if (rsp.F3.padr != req.F3.padr)
+					{
+						pageErrors++;
+					};
+
+					i = 0;
+				};
+			};
+
+			break;
+	};
+
+	return (i < 10);
+}
+
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 void UpdateRequest()
 {
@@ -333,14 +659,6 @@ void UpdateRequest()
 	static Request req;
 	static Response rsp;
 	static u32 *p = flashPages;
-	static u32 pa = 0;
-	static u32 count = ArraySize(flashPages);
-	static u32 packetnum = 0;
-	static u32 oknum = 0;
-	static u32 errornum = 0;
-	static u32 lenErrors = 0;
-	static u32 crcErrors = 0;
-	static u32 pageErrors = 0;
 
 
 	char buf[1024];
@@ -349,135 +667,59 @@ void UpdateRequest()
 	{
 		case 0:
 
-			req.func = 1;
-			req.f1.padr = pa;
-
-			
-			for (i32 j = 0, t = count; j < ArraySize(req.f1.page); j++, t--)
+			if (UpdateProgramSector(true))
 			{
-				req.f1.page[j] = (t > 0) ? p[j] : ~0;
+				i++;
 			};
-
-			req.f1.crc = GetCRC16(&req, sizeof(req) - sizeof(req.f1.crc));
-
-			wb.data = &req;
-			wb.len = sizeof(req.f1);
-			Sleep(5);
-			com1.Write(&wb);
-			i++;
-
-			break;
 
 		case 1:
 
-			if (!com1.Update())
+			if (!UpdateProgramSector(false))
 			{
-				rb.data = &rsp;
-				rb.maxLen = sizeof(rsp.f1);
-				com1.Read(&rb, 1000, 2);
-				i++;
+				if (!secProgOK)
+				{
+					i = 3;
+				}
+				else
+				{
+					i++;
+				};
 			};
 
 			break;
 
 		case 2:
 
-			if (!com1.Update())
-			{
-				packetnum++;
-
-				if (!rb.recieved)
-				{ 
-					errornum++; 
-				}
-				else if (rb.len != sizeof(rsp.f1))
-				{
-					lenErrors++;
-				}
-				else if (GetCRC16(&rsp, sizeof(rsp.f1)) != 0)
-				{
-					crcErrors++;
-				}
-				else if (rsp.f1.padr != req.f1.padr)
-				{
-					pageErrors++;
-				};
-
-
-				if (rb.recieved && rb.len == sizeof(rsp.f1) && rsp.f1.padr == req.f1.padr && GetCRC16(&rsp, sizeof(rsp.f1)) == 0)
-				{
-					oknum++;
-
-					if (rsp.f1.status == 1)
-					{
-						pa += PAGESIZE;
-						p += PAGESIZE>>2;
-
-						if (count > PAGESIZE>>2)
-						{
-							count -= PAGESIZE>>2; 
-							i = 0;
-						}
-						else
-						{
-							i++;
-						};
-
-						SendMessage(prBar, PBM_SETPOS,  2048 * (ArraySize(flashPages) - count) / ArraySize(flashPages), 0);
-					}
-					else
-					{
-						start = false;
-						i = 0;
-						sprintf_s(buf, ArraySize(buf), "Ошибка программирования по адресу 0x%08lX", pa);
-						MessageBox(hWnd, buf, "Ахтунг", MB_OK); 
-					};
-				}
-				else
-				{
-					i = 0;
-				};
-
-				RECT rect = { 10, 80, 480, 180 };
-
-				Printf(10, 80, "Запросов: %lu Таймаут: %lu Длина: %lu CRC: %lu PAGE: %lu", packetnum, errornum, lenErrors, crcErrors, pageErrors);
-				Printf(10, 96, "OK: %lu      ", oknum);
-				Printf(10, 112, "Адрес: 0x%08lX    ", pa);
-				RedrawWindow(hWnd, &rect, 0, RDW_INVALIDATE);
-			};
+			MessageBox(hWnd, "Программирование завершено", "Ахтунг", MB_OK); 
+			run = false;
+			start = false;
+			i = 6;
 
 			break;
 
 		case 3:
 
-			req.func = 0x80000000;
-			req.fx.data = 0x12345678;
-			req.fx.crc = GetCRC16(&req, sizeof(req.fx) - sizeof(req.fx.crc));
-
-			wb.data = &req;
-			wb.len = sizeof(req.fx);
-			com1.Write(&wb);
+			start = false;
 			i++;
+			sprintf_s(buf, ArraySize(buf), "Ошибка программирования по адресу 0x%08lX", pageAdr);
+			MessageBox(hWnd, buf, "Ахтунг", MB_OK); 
 
 			break;
 
 		case 4:
 
-			if (!com1.Update())
-			{
-				MessageBox(hWnd, "Программирование завершено", "Ахтунг", MB_OK); 
-				run = false;
-				start = false;
-				i++;
-			};
-
-			break;
-
-		case 5:
-
-
 			break;
 	};
+
+	SendMessage(prBar, PBM_SETPOS,  512 * pageAdr / ArraySize(flashPages), 0);
+
+	RECT rect = { 10, 80, 480, 400 };
+
+	Printf(10, 80, "Запросов: %lu Таймаут: %lu Длина: %lu CRC: %lu PAGE: %lu", packetnum, errornum, lenErrors, crcErrors, pageErrors);
+	Printf(10, 96, "OK: %lu      ", oknum);
+	Printf(10, 112, "Адрес: 0x%08lX    ", pageAdr);
+	RedrawWindow(hWnd, &rect, 0, RDW_INVALIDATE);
+
 }
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -486,6 +728,8 @@ static void UpdateCom()
 {
 	static byte i = 0;
 	static u32 pt = 0;
+	static Request req;
+	static Response rsp;
 
 	u32 n;
 
@@ -536,10 +780,13 @@ static void UpdateCom()
 
 			if (!com1.Update())
 			{
-				if (rb.recieved && rb.len == sizeof(rspHS) && GetCRC16(&rspHS, sizeof(rspHS)) == 0 && rspHS.guid == slaveGUID)
+				if (rb.recieved)
 				{
-					pt = GetTickCount();
-					i++;
+					if (rb.len == sizeof(rspHS) && GetCRC16(&rspHS, sizeof(rspHS)) == 0 && rspHS.guid == slaveGUID)
+					{
+						pt = GetTickCount();
+						i++;
+					};
 				}
 				else
 				{
@@ -559,6 +806,66 @@ static void UpdateCom()
 			break;
 
 		case 5:
+
+			req.F1.func = 1;
+			req.F1.len = sizeof(flashPages);
+			req.F1.align = 0x5555;
+			req.F1.crc = GetCRC16(&req, sizeof(req.F1) - sizeof(req.F1.crc));
+			wb.data = &req;
+			wb.len = sizeof(req.F1);
+			com1.Write(&wb);
+			i++;
+
+		case 6:
+
+			if (!com1.Update())
+			{
+				rb.data = &rsp;
+				rb.maxLen = sizeof(rsp.F1);
+				com1.Read(&rb, 20, 2);
+				i++;
+			};
+
+			break;
+
+		case 7:
+
+			if (!com1.Update())
+			{
+				if (rb.recieved && rb.len == sizeof(rsp.F1) && rsp.F1.func == rsp.F1.func && GetCRC16(&rsp, sizeof(rsp.F1)) == 0)
+				{
+					if (rsp.F1.len == req.F1.len && rsp.F1.sCRC == GetCRC16(flashPages, sizeof(flashPages)))
+					{
+						MessageBox(hWnd, "Прошивки совпадают, программирование не требуется", "Ништяк", MB_OK); 
+						run = false;
+						i = ~0;
+					}
+					else
+					{
+						PAGESIZE = rsp.F1.pageLen;
+						//PAGEDWORDS = PAGESIZE>>2;
+						pt = GetTickCount();
+						i++;
+					};
+				}
+				else
+				{
+					i = 5;
+				};
+			};
+
+			break;
+
+		case 8:
+
+			if ((GetTickCount() - pt) > 100)
+			{
+				i++;
+			};
+
+			break;
+
+		case 9:
 
 			UpdateRequest();
 
