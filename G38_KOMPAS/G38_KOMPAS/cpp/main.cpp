@@ -22,7 +22,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-static u16 verDevice = 0x103;
+static u16 verDevice = 0x104;
 
 //static u32 manCounter = 0;
 
@@ -355,7 +355,7 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[9];
+	static u16 rsp[10];
 
 	if (wb == 0 || len != 1) return false;
 
@@ -363,11 +363,12 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	rsp[1] = GetAP();			//	2.Давление (у.е)
 	rsp[2] = temp;				//	3.Температура манометра (у.е)
 	rsp[3] = curAP;				//	4.Давление (0.01 МПа)
-	rsp[4] = temp;				//	5.Температура в приборе(гр)(short)
-	rsp[5] = GetShaftPos();		//	6.Положение вала двигателя (short у.е)
-	rsp[6] = closeShaftPos;		//	7.Положение вала при закрытии(у.е)(short)
-	rsp[7] = GetMaxCurrent();	//	8.Ток двигателя (мА)
-	rsp[8] = motorState;		//	9.Состояние двигателя
+	rsp[4] = dAP;				//	5.Изменение давления (0.01 МПа)
+	rsp[5] = temp;				//	6.Температура в приборе(гр)(short)
+	rsp[6] = GetShaftPos();		//	7.Положение вала двигателя(у.е)(short)
+	rsp[7] = closeShaftPos;		//	8.Положение вала при закрытии(у.е)(short)
+	rsp[8] = GetMaxCurrent();	//	9.Ток двигателя (мА)
+	rsp[9] = motorState;		//	10.Состояние двигателя
 
 	wb->data = rsp;
 	wb->len = sizeof(rsp);
@@ -488,7 +489,7 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
 	static u16 rsp[1];
 
-	if (wb == 0 || len < 129) return false;
+	if (wb == 0 || len != (sizeof(cal)/2-1)) return false;
 
 	u16 *p = (u16*)&cal.rw;
 

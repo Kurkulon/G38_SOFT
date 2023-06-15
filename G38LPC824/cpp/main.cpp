@@ -19,7 +19,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-static u16 verDevice = 0x103;
+static u16 verDevice = 0x104;
 
 //static u32 manCounter = 0;
 
@@ -320,16 +320,15 @@ static void UpdateTemp()
 
 static bool RequestMan_00(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[3];
-
 	if (wb == 0 || len != 1) return false;
+
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
 	rsp[0] = manReqWord;
 	rsp[1] = numDevice;
 	rsp[2] = verDevice;
 
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 6;
 
 	return true;
 }
@@ -338,14 +337,13 @@ static bool RequestMan_00(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
-
 	if (wb == 0 || len != 1) return false;
+
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
 	rsp[0] = manReqWord|0x10;	// 	1. ответное слово
 
-	wb->data = rsp;			 
-	wb->len = sizeof(rsp);	 
+	wb->len = 2;	 
 
 	return true;
 }
@@ -354,22 +352,22 @@ static bool RequestMan_10(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[9];
-
 	if (wb == 0 || len != 1) return false;
+
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
 	rsp[0] = manReqWord|0x20;	//	1.Ответное слово (принятая команда)
 	rsp[1] = GetAP();			//	2.Давление (у.е)
 	rsp[2] = temp;				//	3.Температура манометра (у.е)
 	rsp[3] = AP;				//	4.Давление (0.01 МПа)
-	rsp[4] = temp;				//	5.Температура в приборе(гр)(short)
-	rsp[5] = GetShaftPos();		//	6.Положение вала двигателя (short у.е)
-	rsp[6] = closeShaftPos;		//	7.Положение вала при закрытии(у.е)(short)
-	rsp[7] = GetCurrent();		//	8.Ток двигателя (мА)
-	rsp[8] = motorState;		//	9.Состояние двигателя
+	rsp[4] = dAP;				//	5.Изменение давления (0.01 МПа)
+	rsp[5] = temp;				//	6.Температура в приборе(гр)(short)
+	rsp[6] = GetShaftPos();		//	7.Положение вала двигателя(у.е)(short)
+	rsp[7] = closeShaftPos;		//	8.Положение вала при закрытии(у.е)(short)
+	rsp[8] = GetCurrent();		//	9.Ток двигателя (мА)
+	rsp[9] = motorState;		//	10.Состояние двигателя
 
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 20;
 
 	return true;
 }
@@ -378,25 +376,25 @@ static bool RequestMan_20(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp0[4];
-
 	if (wb == 0 || len != 1) return false;
 
 	rsp_30 = GetRsp30();
 
 	if (rsp_30 == 0)
 	{
-		rsp0[0] = data[0];
-		rsp0[1] = 0;
-		rsp0[2] = 0;
-		rsp0[3] = 0;
-		wb->data = rsp0;
-		wb->len = sizeof(rsp0);
+		__packed u16 *rsp = (__packed u16*)wb->data;
+
+		rsp[0] = data[0];
+		rsp[1] = 0;
+		rsp[2] = 0;
+		rsp[3] = 0;
+
+		wb->len = 8;
 	}
 	else
 	{
 		wb->data = rsp_30;
-		wb->len = sizeof(*rsp_30) - sizeof(rsp_30->data) + rsp_30->sl*2;
+		wb->len = sizeof(*rsp_30) - sizeof(rsp_30->data) - sizeof(rsp_30->crc) + rsp_30->sl*2;
 	};
 
 	return true;
@@ -406,15 +404,14 @@ static bool RequestMan_30(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_40(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-//	static u16 rsp[1];
-
 	if (wb == 0 || len != 1) return false;
 
 	CalibrateShaftPos();
 
-	data[0] = manReqWord|0x40;	// 	1. ответное слово
+	__packed u16 *rsp = (__packed u16*)wb->data;
 
-	wb->data = data;			 
+	rsp[0] = manReqWord|0x40;	// 	1. ответное слово
+
 	wb->len = 2;	 
 
 	return true;
@@ -429,7 +426,7 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	cal.rw = manReqWord|0x70;	// 	1. ответное слово
 
 	wb->data = &cal;
-	wb->len = sizeof(cal);
+	wb->len = sizeof(cal)-2;
 
 	return true;
 }
@@ -438,7 +435,6 @@ static bool RequestMan_70(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_80(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
 
 	if (wb == 0 || len != 3) return false;
 
@@ -451,10 +447,11 @@ static bool RequestMan_80(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 			break;
 	};
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0x80;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -463,7 +460,6 @@ static bool RequestMan_80(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
 
 	if (wb == 0 || len != 3) return false;
 
@@ -471,10 +467,11 @@ static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 	//{
 	//};
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0x90;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -483,9 +480,7 @@ static bool RequestMan_90(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
-
-	if (wb == 0 || len < 129) return false;
+	if (wb == 0 || len != (sizeof(cal)/2-1)) return false;
 
 	u16 *p = (u16*)&cal.rw;
 
@@ -496,10 +491,11 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 	saveCal = true;
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0xE0;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -508,16 +504,15 @@ static bool RequestMan_E0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 
 static bool RequestMan_F0(u16 *data, u16 len, ComPort::WriteBuffer *wb)
 {
-	static u16 rsp[1];
-
 	if (wb == 0 || len != 1) return false;
 
 	SaveParams();
 
+	__packed u16 *rsp = (__packed u16*)wb->data;
+
 	rsp[0] = manReqWord|0xF0;
  
-	wb->data = rsp;
-	wb->len = sizeof(rsp);
+	wb->len = 2;
 
 	return true;
 }
@@ -567,7 +562,8 @@ static void UpdateMan()
 	static byte i = 0;
 	static ComPort::WriteBuffer wb;
 	static ComPort::ReadBuffer rb;
-	static byte buf[1024];
+	static byte buf[512];
+	static u16 rspbuf[256];
 
 	switch(i)
 	{
@@ -575,7 +571,7 @@ static void UpdateMan()
 
 			rb.data = buf;
 			rb.maxLen = sizeof(buf);
-			com.Read(&rb, (u32)-1, 10000);
+			com.Read(&rb, ~0, US2COM(200));
 			i++;
 
 			break;
@@ -584,10 +580,20 @@ static void UpdateMan()
 
 			if (!com.Update())
 			{
-				if (rb.recieved && rb.len > 0)
+				if (rb.recieved && rb.len >= 4 && GetCRC16(rb.data, rb.len) == 0)
 				{
+					rb.len -= 2;
+
+					wb.data = rspbuf;
+					wb.len = sizeof(rspbuf);
+
 					if (RequestMan(&wb, &rb))
 					{
+						DataPointer p(wb.data);
+						p.b += wb.len;
+						p.w[0] = GetCRC16(wb.data, wb.len);
+						wb.len += 2;
+
 						com.Write(&wb);
 						i++;
 					}

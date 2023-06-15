@@ -336,14 +336,17 @@ static bool WritePageBuf(u32 pagenum, u32 *pbuf)
 bool HandShake()
 {
 	static ReqHS req;
-	static RspHS rsp;
+
+	static byte buf[sizeof(RspHS)+16];
 
 	static ComPort::WriteBuffer wb = { false, sizeof(req), &req };
 
-	static ComPort::ReadBuffer rb = { false, 0, sizeof(rsp), &rsp };
+	static ComPort::ReadBuffer rb = { false, 0, sizeof(buf), buf };
 
 	req.guid = slaveGUID;
 	req.crc = GetCRC16(&req, sizeof(req)-2);
+
+	RspHS &rsp = *((RspHS*)buf);
 
 	com.Connect(0, 115200, 0);
 
