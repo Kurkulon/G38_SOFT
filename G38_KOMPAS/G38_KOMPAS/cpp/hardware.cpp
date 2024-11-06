@@ -10,8 +10,8 @@
 
 #define LOCK_CLOSE_POSITION 0
 #define INIT_CLOSE_POSITION 0
-#define OPEN_POSITION		30
-#define OPEN_RAND_MASK		3
+#define OPEN_POSITION		40
+#define OPEN_RAND_MASK		15
 #define CUR_CAL_MAXON		600
 //#define CUR_CAL_FAULHABER	300
 
@@ -38,10 +38,10 @@ u16 closeCurADC = 0;
 u16 errCloseCount = 0;
 u16 errOpenCount = 0;
 
-static u16 tachoTimeStamp = 0;
-static u16 tachoDT = 0;
-static const u16 dutyRPM[16] = { 100, 400, 400, 350, 200, 250, 200, 150, 100, 100, 100, 100, 100, 100, 100, 100 };
-static u16 speed = 0;
+//static u16 tachoTimeStamp = 0;
+//static u16 tachoDT = 0;
+//static const u16 dutyRPM[16] = { 100, 400, 400, 350, 200, 250, 200, 150, 100, 100, 100, 100, 100, 100, 100, 100 };
+//static u16 speed = 0;
 
 SHAFTPOS closeShaftPos;// = 0;
 static i32 openShaftPos = 0;
@@ -54,7 +54,7 @@ static u32 cntHV = 0;
 static u32 cntHW = 0;
 
 static u32 hallDisMask = 0;
-static u32 hallForced = 0;
+//static u32 hallForced = 0;
 
 
 MOTOSTATE motorState = IDLE;
@@ -182,26 +182,26 @@ const byte HG_pin[16] =		{ UH, UH, VH, VH, WH, UH, WH, VH,		VH, WH, UH, WH, VH, 
 //byte HG_pin[16] =		{ NN, UH, VH, NN, WH, NN, NN, NN,		NN, NN, NN, NN, NN, NN, NN, NN };
 
 const byte aaa[6] = { 1,3,2,6,4,5 }; 
-const byte qqq[16] = {5, 3, 6, 2, 5, 1, 4, 3, 14, 13, 11, 9, 14, 12, 10, 9};
+//const byte qqq[16] = {5, 3, 6, 2, 5, 1, 4, 3, 14, 13, 11, 9, 14, 12, 10, 9};
 
 i32 destShaftPos = 0;
 //u16 maxCurrent = 600;
 
-static i32 fltDestShaftPos = 0;
+//static i32 fltDestShaftPos = 0;
 
 
 
 static i32 curDutyOut = 0;
 static i32 pidOut = 0;
-static i32 curPidOut = 0;
+//static i32 curPidOut = 0;
 static u16 curLim = CUR_LIM_MAXON;
-static u16 curCal = CUR_CAL_MAXON;
+//static u16 curCal = CUR_CAL_MAXON;
 
-static i32 maxOut = 0;
-static i32 limOut = 0;
+//static i32 maxOut = 0;
+//static i32 limOut = 0;
 
-const u16 _minDuty = 100;//400;
-const u16 _maxDuty = 350;//400;
+//const u16 _minDuty = 100;//400;
+//const u16 _maxDuty = 350;//400;
 const u16 maxDuty = 400;
 //u16 duty = 0, curd = 0;
 
@@ -209,10 +209,10 @@ static i32 Kp = 1000000/*2000000*/, Ki = 2000/*4000*/, Kd = 500000;
 static i32 iKp = 2000, iKi = 1000, iKd = 0;
 
 static u32 startOpenTime = 0;
-static u32 startCloseTime = 0;
-static u32 openValveTime = 0;
-static u32 closeValveTime = 0;
-//static i8 tachoDir = -1;
+//static u32 startCloseTime = 0;
+//static u32 openValveTime = 0;
+//static u32 closeValveTime = 0;
+static i8 tachoDir = -1;
 
 
 
@@ -379,7 +379,7 @@ static void PID_Update()
 	po *= SetDutyCurrent(curLim);
 	po /= 65536;
 
-	SetDutyPWMDir(curPidOut = po);
+	SetDutyPWMDir(po);
 
 	e2 = e1; e1 = e;
 }
@@ -485,7 +485,7 @@ void CloseValve(bool forced)
 			SetDestShaftPos(closeShaftPos-1);
 		};
 
-		startCloseTime = GetMilliseconds();
+		//startCloseTime = GetMilliseconds();
 
 		if (curRsp30 != 0) readyRsp30.Add(curRsp30);
 
@@ -510,8 +510,8 @@ static void UpdateMotor()
 	//u32 tacho, t;
 	static TM32 tm, tm2;//, tm3;
 	static i32 prevshaftPos = 0;
-	static u32 t = 500;
-	static i32 cnt = 0;
+//	static u32 t = 500;
+//	static i32 cnt = 0;
 
 	switch (motorState)
 	{
@@ -545,7 +545,7 @@ static void UpdateMotor()
 
 				DisableDriver();
 
-				closeValveTime = GetMilliseconds() - startCloseTime;
+				//closeValveTime = GetMilliseconds() - startCloseTime;
 
 				motorState = CLOSE_OK;
 			};
@@ -625,7 +625,7 @@ static void UpdateMotor()
 
 				//DisableDriver();
 
-				openValveTime = GetMilliseconds() - startOpenTime;
+				//openValveTime = GetMilliseconds() - startOpenTime;
 
 				motorState = OPEN_OK;
 			}
@@ -678,7 +678,7 @@ static void UpdateMotor()
 
 		case CAL_1:	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-			curCal = curLim = CUR_CAL_MAXON;
+			curLim = CUR_CAL_MAXON;
 
 			EnableDriver();
 
@@ -712,17 +712,17 @@ static void UpdateMotor()
 			{
 				prevshaftPos = shaftPos;
 				tm.Reset();
-			};
-			//else if (tm.Timeout(50) && ((shaftPos - prevshaftPos) > 10))
-			//{
-			//	tachoDir = -tachoDir; // Двигатель FAULHABER 2250 024 BX4
+			}
+			else if (tm.Timeout(50) && ((shaftPos - prevshaftPos) > 10))
+			{
+				tachoDir = -tachoDir; // Двигатель FAULHABER 2250 024 BX4
 			//	CSD *= 2;
 			//	DCL *= 2;
 			//	Kp /= 2;
 			//	Ki /= 2;
 			//	curCal = curLim = CUR_CAL_FAULHABER;
-			//	tm.Reset();
-			//};
+				tm.Reset();
+			};
 
 			break;
 
@@ -934,7 +934,7 @@ static __irq void TahoHandler()
 		HW::SWM->CTOUT_1 = HG_pin[t];
 	};
 
-	shaftPos += tachoEncoder[t & 7][ist];
+	shaftPos += tachoEncoder[t & 7][ist] * tachoDir;
 
 	HW::PIN_INT->IENF = (~t) & 7;
 
@@ -961,8 +961,8 @@ static void TahoSync()
 {
 	static u16 pt = 0;
 	static u16 pt2 = 0;
-	static u32 prtacho = 0;
-	static u16 dt = 100;
+//	static u32 prtacho = 0;
+//	static u16 dt = 100;
 
 	static byte n = 0;
 

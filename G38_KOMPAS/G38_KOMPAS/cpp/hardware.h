@@ -17,7 +17,7 @@ struct SHAFTPOS
 
 };
 
-struct Rsp30 { Rsp30 *next; struct Rsp { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; } rsp; };
+struct Rsp30 { Rsp30 *next; struct Rsp { u16 rw; u16 dir; u16 st; u16 sl; u16 data[200]; u16 crc; } rsp; };
 
 extern void InitHardware();
 extern void UpdateHardware();
