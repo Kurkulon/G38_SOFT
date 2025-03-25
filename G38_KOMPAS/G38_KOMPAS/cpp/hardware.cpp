@@ -15,7 +15,8 @@
 #define CUR_CAL_MAXON		600
 //#define CUR_CAL_FAULHABER	300
 
-#define CUR_LIM_MAXON		600
+#define CUR_LIM_MAXON		1200
+#define CUR_LIM_MAXON_ERR	1200
 //#define CUR_LIM_FAULHABER	600
 //#define MAXCNT 50				// Компенсация датчиков Холла
 //#define CLOSECURRENT 200		// Номинальный ток в closeShaftPos
@@ -535,7 +536,7 @@ static void UpdateMotor()
 
 				DisableDriver();
 
-				curLim = CUR_LIM_MAXON*2;
+				curLim = CUR_LIM_MAXON_ERR;
 
 				motorState = CLOSE_ERR;
 			}
@@ -612,7 +613,7 @@ static void UpdateMotor()
 
 				DisableDriver();
 
-				curLim = CUR_LIM_MAXON*2;
+				curLim = CUR_LIM_MAXON_ERR;
 
 				motorState = OPEN_ERR;
 			}
