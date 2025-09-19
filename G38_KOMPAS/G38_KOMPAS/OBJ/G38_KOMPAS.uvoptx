@@ -148,62 +148,69 @@
           <Name></Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
-      <Breakpoint/>
+      <Breakpoint>
+        <Bp>
+          <Number>0</Number>
+          <Type>0</Type>
+          <LineNumber>880</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>12598</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>d:\Work\G38_SOFT\G38_KOMPAS\G38_KOMPAS\cpp\main.cpp</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\G38_KOMPAS\cpp/main.cpp\880</Expression>
+        </Bp>
+      </Breakpoint>
       <WatchWindow1>
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>command_param</ItemText>
+          <ItemText>msec,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>status_result</ItemText>
+          <ItemText>shaftPos,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>SeggerRttCB</ItemText>
+          <ItemText>openShaftPos,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>msec,0x0A</ItemText>
+          <ItemText>closeShaftPos.pos,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>shaftPos,0x0A</ItemText>
+          <ItemText>destShaftPos,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
           <WinNumber>1</WinNumber>
-          <ItemText>openShaftPos,0x0A</ItemText>
+          <ItemText>Kp,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>closeShaftPos.pos</ItemText>
+          <ItemText>Ki,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>destShaftPos,0x0A</ItemText>
+          <ItemText>Kd,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>rsp_30</ItemText>
-        </Ww>
-        <Ww>
-          <count>9</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>curRsp30</ItemText>
-        </Ww>
-        <Ww>
-          <count>10</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>buf_rsp30</ItemText>
+          <ItemText>motorState</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -327,7 +334,7 @@
         <Mm>
           <WinNumber>1</WinNumber>
           <SubType>2</SubType>
-          <ItemText>0x100005c8</ItemText>
+          <ItemText>0x1000049c</ItemText>
           <AccSizeX>0</AccSizeX>
         </Mm>
       </MemoryWindow1>
@@ -375,16 +382,8 @@
       <pMultCmdsp></pMultCmdsp>
       <SystemViewers>
         <Entry>
-          <Name>System Viewer\I2C1</Name>
-          <WinId>35904</WinId>
-        </Entry>
-        <Entry>
-          <Name>System Viewer\MRT</Name>
+          <Name>System Viewer\GPIO_PORT</Name>
           <WinId>35905</WinId>
-        </Entry>
-        <Entry>
-          <Name>System Viewer\WWDT</Name>
-          <WinId>35903</WinId>
         </Entry>
       </SystemViewers>
       <DebugDescription>

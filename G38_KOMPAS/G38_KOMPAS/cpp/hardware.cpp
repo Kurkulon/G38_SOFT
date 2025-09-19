@@ -10,8 +10,8 @@
 
 #define LOCK_CLOSE_POSITION 0
 #define INIT_CLOSE_POSITION 0
-#define OPEN_POSITION		40
-#define OPEN_RAND_MASK		15
+#define OPEN_POSITION		35
+#define OPEN_RAND_MASK		7
 #define CUR_CAL_MAXON		600
 //#define CUR_CAL_FAULHABER	300
 
@@ -206,7 +206,7 @@ static u16 curLim = CUR_LIM_MAXON;
 const u16 maxDuty = 400;
 //u16 duty = 0, curd = 0;
 
-static i32 Kp = 1000000/*2000000*/, Ki = 2000/*4000*/, Kd = 500000;
+static i32 Kp = 2000000/*2000000*/, Ki = 4000/*4000*/, Kd = 500000;
 static i32 iKp = 2000, iKi = 1000, iKd = 0;
 
 static u32 startOpenTime = 0;
@@ -641,25 +641,25 @@ static void UpdateMotor()
 
 		case OPEN_OK: // Открыт	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-			if (CheckDriverOff())
-			{
-				if (shaftPos < (openShaftPos-10) || shaftPos > (openShaftPos+10)) 
-				{
-					SetDestShaftPos(openShaftPos);
-					EnableDriver();
-				};
+			//if (CheckDriverOff())
+			//{
+			//	if (shaftPos < (openShaftPos-10) || shaftPos > (openShaftPos+10)) 
+			//	{
+			//		SetDestShaftPos(openShaftPos);
+			//		EnableDriver();
+			//	};
 
-				tm.Reset();
-			}
-			else
-			{
-				if (shaftPos >= (openShaftPos-5) && shaftPos <= (openShaftPos+5))
-				{
-					DisableDriver();
+			//	tm.Reset();
+			//}
+			//else
+			//{
+			//	if (shaftPos >= (openShaftPos-5) && shaftPos <= (openShaftPos+5))
+			//	{
+			//		DisableDriver();
 
-					tm.Reset();
-				};
-			};
+			//		tm.Reset();
+			//	};
+			//};
 
 			prevshaftPos = shaftPos;
 

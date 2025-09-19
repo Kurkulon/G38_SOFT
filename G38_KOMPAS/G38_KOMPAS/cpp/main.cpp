@@ -23,7 +23,7 @@ static u16 manReqWord = 0x0000;
 static u16 manReqMask = 0xFF00;
 
 static u16 numDevice = 1;
-static u16 verDevice = 0x104;
+static u16 verDevice = 0x105;
 
 //static u32 manCounter = 0;
 
