@@ -307,13 +307,15 @@ inline void LockShaftPos()
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static i32 current_e1 = 0, current_e2 = 0;
+
 static i32 SetDutyCurrent(u16 cur)
 {
 	//static dword pt = GetMilliseconds();//, pt2 = GetMilliseconds();
 	//dword t = GetMilliseconds();
 	//dword dt = t - pt;
 
-	static i32 e1 = 0, e2 = 0;
+	i32 &e1 = current_e1, &e2 = current_e2;
 
 //	const i32 iKp = 1.0 * 65536, iKi = 0.02 * 65536, iKd = 10.0 * 65536;
 
@@ -354,9 +356,11 @@ static i32 SetDutyCurrent(u16 cur)
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+static i32 pid_e1 = 0, pid_e2 = 0;
+
 static void PID_Update()
 {
-	static i32 e1 = 0, e2 = 0;
+	i32 &e1 = pid_e1, &e2 = pid_e2;
 
 	i32 e;// = fltDestShaftPos/32;
 
@@ -431,9 +435,9 @@ void OpenValve(bool forced)
 
 	if (motorState == IDLE || motorState == CLOSE_OK || motorState == CLOSE_ERR || forced)
 	{
-		closeShaftPos.pos += (((shaftPos - closeShaftPos) - CSD) * CFK) >> 3; 
+		closeShaftPos.pos += (motorState == CLOSE_ERR) ? 16 : ((((shaftPos - closeShaftPos) - CSD) * CFK) >> 3); 
 
-		openShaftPos = closeShaftPos + deltaShaftPos + (rand & OPEN_RAND_MASK);
+		/*if (motorState != CLOSE_ERR)*/ openShaftPos = closeShaftPos + deltaShaftPos + (rand & OPEN_RAND_MASK);
 
 		startOpenTime = GetMilliseconds();
 
@@ -441,13 +445,13 @@ void OpenValve(bool forced)
 
 		EnableDriver();
 
-		if (motorState == CLOSE_ERR)
+		//if (motorState == CLOSE_ERR)
+		//{
+		//	SetDestShaftPos(shaftPos + 2000);
+		//}
+		//else
 		{
-			SetDestShaftPos(shaftPos + 2000);
-		}
-		else
-		{
-			curLim = CUR_LIM_MAXON;
+			curLim = CUR_LIM_MAXON; 
 			SetDestShaftPos(openShaftPos);
 		};
 
@@ -669,11 +673,18 @@ static void UpdateMotor()
 
 		case OPEN_ERR: //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-			DisableDriver();
+			if (tm.Check(100))
+			{
+				prevshaftPos = shaftPos;
+				
+				EnableDriver();
 
-			prevshaftPos = shaftPos;
+				SetDestShaftPos(shaftPos-2000);
 
-			tm.Reset();
+				tm.Reset();
+
+				motorState = CAL_START;
+			};
 
 			break;
 
@@ -770,6 +781,21 @@ static void UpdateMotor()
 		case CAL_START:	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 			tm.Reset();
+
+			//shaftPos = 0;
+			//destShaftPos = 0;
+			//closeShaftPos = 0;
+			//openShaftPos = 0;
+			//deltaShaftPos = 0;
+			//maxCloseShaftPos = 0;
+
+			//pid_e1 = 0;
+			//pid_e2 = 0;
+			//current_e1 = 0;
+			//current_e2 = 0;
+
+			//curDutyOut = 0;
+			//pidOut = 0;
 
 			motorState = CAL_6;
 
